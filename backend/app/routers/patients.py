@@ -2,6 +2,7 @@ from datetime import date
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, or_
 from sqlmodel import col, select
 
@@ -17,6 +18,7 @@ from app.schemas.patients import (
     PatientUpdate,
     RiskScreening,
     RiskScreeningRequest,
+    VisitFinding,
     VisitSummary,
 )
 from app.services import audit
@@ -114,6 +116,7 @@ def get_patient(patient_id: int, session: SessionDep, user: CurrentUser, request
             id=c.id, visit_date=c.visit_date, department=c.department, chief_complaint=c.chief_complaint,
             diagnosis=c.diagnosis, procedure=c.procedure, status=c.status,
             student_name=student_name, faculty_name=faculty_name, findings_count=len(c.findings),
+            findings=[VisitFinding.model_validate(f) for f in sorted(c.findings, key=lambda f: f.tooth_number)],
         )
         for c, _pn, _opd, student_name, _roll, faculty_name in rows
     ]
@@ -166,3 +169,28 @@ def risk_screening(patient_id: int, session: SessionDep, user: CurrentUser, requ
     audit.record_view(session, user, "patient", patient.id,
                       f"Risk screening for {patient.opd_number}: {result['risk_level']}", request)
     return result
+
+
+@router.get("/{patient_id}/fhir", summary="Export the patient's record as a FHIR R4 Bundle (JSON)",
+            response_description="FHIR R4 Bundle of type 'collection' (application/fhir+json)")
+def export_fhir(patient_id: int, session: SessionDep, user: CurrentUser, request: Request,
+                include_risk: bool = True) -> JSONResponse:
+    from app.services.fhir import FHIR_VERSION, build_bundle
+    from ml.oral_risk import screen
+
+    patient = _get_or_404(session, patient_id)
+    risk = None
+    if include_risk:
+        try:
+            risk = screen(session, patient)
+        except FileNotFoundError:  # model not trained: export without the RiskAssessment
+            risk = None
+    bundle = build_bundle(session, patient, risk)
+    audit.record(session, user, "export", "patient", patient.id,
+                 f"Exported FHIR bundle for {patient.opd_number} ({len(bundle['entry'])} resources)", request)
+    session.commit()
+    return JSONResponse(
+        bundle,
+        media_type=f"application/fhir+json; fhirVersion={FHIR_VERSION[:3]}",
+        headers={"Content-Disposition": f'attachment; filename="{patient.opd_number}-fhir-bundle.json"'},
+    )

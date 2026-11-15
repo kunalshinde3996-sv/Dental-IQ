@@ -51,6 +51,7 @@ export const patientsApi = {
   get: (id: number) => request<PatientDetail>('GET', `/patients/${id}`),
   create: (body: PatientInput) => request<PatientRead>('POST', '/patients', { body }),
   update: (id: number, body: Partial<PatientInput>) => request<PatientRead>('PATCH', `/patients/${id}`, { body }),
+  fhirBundle: (id: number) => request<Record<string, unknown>>('GET', `/patients/${id}/fhir`),
   riskScreening: (id: number, lesionObserved?: boolean) =>
     request<RiskScreening>('POST', `/patients/${id}/risk-screening`, {
       body: { lesion_observed: lesionObserved ?? null },

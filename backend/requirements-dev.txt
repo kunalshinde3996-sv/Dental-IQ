@@ -1,0 +1,6 @@
+# Test / CI tooling (not installed in the production image)
+-r requirements.txt
+pytest==8.3.4
+httpx==0.28.1
+# Structural validation of the FHIR export in tests (R4B models; see docs/abdm-roadmap.md)
+fhir.resources==8.0.0

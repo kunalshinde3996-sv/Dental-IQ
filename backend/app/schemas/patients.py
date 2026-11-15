@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models.enums import CaseStatus, Department, HabitStatus, Sex, Taluka
+from app.models.enums import CaseStatus, Department, HabitStatus, Sex, Taluka, ToothCondition
 
 _ABHA_DIGITS = re.compile(r"^\d{14}$")
 _PHONE = re.compile(r"^[6-9]\d{9}$")
@@ -116,6 +116,15 @@ class PatientListItem(BaseModel):
     visit_count: int = 0
 
 
+class VisitFinding(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    tooth_number: int
+    condition: ToothCondition
+    surfaces: str | None
+    treatment: str | None
+
+
 class VisitSummary(BaseModel):
     id: int
     visit_date: date
@@ -127,6 +136,9 @@ class VisitSummary(BaseModel):
     student_name: str
     faculty_name: str
     findings_count: int
+    # The patient's chart is part of their record (the treating team needs it), so each visit
+    # carries its tooth findings even when the viewer is not that visit's student.
+    findings: list[VisitFinding] = []
 
 
 class PatientDetail(PatientRead):

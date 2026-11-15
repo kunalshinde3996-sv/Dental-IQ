@@ -97,6 +97,8 @@ interface ToothChartProps {
   readOnly?: boolean
   /** Suggested dentition (e.g. 'primary' for Pedodontics). Existing findings take precedence. */
   preferredDentition?: Dentition
+  /** Hide the Permanent/Primary switch (e.g. printed summaries that render each chart separately). */
+  hideDentitionToggle?: boolean
 }
 
 function initialDentition(findings: ToothFindingInput[], preferred?: Dentition): Dentition {
@@ -106,7 +108,7 @@ function initialDentition(findings: ToothFindingInput[], preferred?: Dentition):
   return preferred ?? 'permanent'
 }
 
-export function ToothChart({ findings, onChange, readOnly = false, preferredDentition }: ToothChartProps) {
+export function ToothChart({ findings, onChange, readOnly = false, preferredDentition, hideDentitionToggle = false }: ToothChartProps) {
   const [selected, setSelected] = useState<number | null>(null)
   const [dentition, setDentition] = useState<Dentition>(() => initialDentition(findings, preferredDentition))
   const counts = {
@@ -178,7 +180,7 @@ export function ToothChart({ findings, onChange, readOnly = false, preferredDent
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className={cx('mb-3 flex flex-wrap items-center justify-between gap-2', hideDentitionToggle && 'hidden')}>
         <Segmented<Dentition>
           name="Dentition"
           value={dentition}

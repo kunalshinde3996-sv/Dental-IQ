@@ -8,6 +8,7 @@ import { formatDate } from '../../lib/format'
 import { DEPARTMENTS, HABITS, SEXES, TALUKAS } from '../../lib/labels'
 import { useApi } from '../../lib/useApi'
 import { HabitBadges } from './HabitBadges'
+import { PatientExportActions } from './PatientExportActions'
 
 function Detail({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -41,6 +42,7 @@ export function PatientProfilePage() {
         }
         actions={
           <>
+            <PatientExportActions patientId={p.id} opdNumber={p.opd_number} />
             <Link to={`/patients/${p.id}/edit`} className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50">
               Edit details
             </Link>

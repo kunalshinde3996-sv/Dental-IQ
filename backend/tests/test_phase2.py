@@ -372,3 +372,39 @@ def test_at_risk_and_allocation_notifications(seeded):
     with Session(engine) as s:
         kinds = s.exec(select(Notification.kind).where(Notification.user_id == student_user["user_id"])).all()
     assert "patient_allocated" in kinds
+
+
+# --- Phase 3: FHIR export ---------------------------------------------------------------------
+
+def test_fhir_export_is_valid_and_audited(seeded):
+    from fhir.resources.R4B.bundle import Bundle
+
+    h = auth(seeded, "faculty@gdch.demo")
+    patients = seeded.get("/api/patients", params={"limit": 200}, headers=h).json()["items"]
+    pid = next(p["id"] for p in patients if p["abha_id"] and p["visit_count"] >= 2)
+    res = seeded.get(f"/api/patients/{pid}/fhir", headers=h)
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("application/fhir+json")
+    assert "attachment" in res.headers["content-disposition"]
+    bundle = res.json()
+
+    parsed = Bundle.model_validate(bundle)  # structural validation against FHIR R4B models
+    assert parsed.type == "collection"
+    types = [e["resource"]["resourceType"] for e in bundle["entry"]]
+    assert types[0] == "Patient" and {"Encounter", "Condition", "Procedure", "RiskAssessment"} <= set(types)
+
+    patient = bundle["entry"][0]["resource"]
+    systems = {i["system"] for i in patient["identifier"]}
+    assert "https://healthid.ndhm.gov.in" in systems  # ABHA number exported
+    assert patient["address"][0]["state"] == "Goa"
+
+    full_urls = {e["fullUrl"] for e in bundle["entry"]}
+    for e in bundle["entry"]:
+        for value in e["resource"].values():
+            if isinstance(value, dict) and "reference" in value:
+                assert value["reference"] in full_urls  # every reference resolves inside the bundle
+
+    # Exports are audited
+    audit = seeded.get("/api/audit", params={"action": "export", "entity_id": pid},
+                       headers=auth(seeded, "admin@gdch.demo")).json()
+    assert audit["total"] >= 1

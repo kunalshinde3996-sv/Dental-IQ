@@ -119,6 +119,7 @@ export interface VisitSummary {
   student_name: string
   faculty_name: string
   findings_count: number
+  findings: ToothFindingInput[]
 }
 
 export interface PatientDetail extends PatientRead {

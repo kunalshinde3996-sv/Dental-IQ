@@ -16,6 +16,7 @@ import { AttendancePage } from './pages/faculty/AttendancePage'
 import { MarksEntryPage } from './pages/faculty/MarksEntryPage'
 import { LoginPage } from './pages/LoginPage'
 import { PatientFormPage } from './pages/patients/PatientFormPage'
+import { PatientPrintPage } from './pages/patients/PatientPrintPage'
 import { PatientProfilePage } from './pages/patients/PatientProfilePage'
 import { PatientsListPage } from './pages/patients/PatientsListPage'
 import { MyCasesPage } from './pages/student/MyCasesPage'
@@ -41,6 +42,8 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* Printable summary: no app shell, print stylesheet */}
+          <Route path="/patients/:id/print" element={<RequireAuth><PatientPrintPage /></RequireAuth>} />
           <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route index element={<HomeRedirect />} />
 
