@@ -1,0 +1,59 @@
+# Dental-IQ: one-command start.
+#   cp .env.example .env        # then set JWT_SECRET and POSTGRES_PASSWORD
+#   docker compose up --build -d
+#   docker compose exec backend python -m scripts.seed --reset   # synthetic demo data + model training
+#   open http://localhost:8080
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dentaliq
+      POSTGRES_USER: dentaliq
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dentaliq -d dentaliq"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      secrets: [extra_ca]
+    environment:
+      APP_ENV: production
+      AUTO_CREATE_TABLES: "false"          # schema is managed by Alembic (run on start-up)
+      DATABASE_URL: postgresql+psycopg2://dentaliq:${POSTGRES_PASSWORD}@db:5432/dentaliq
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (python -c "import secrets; print(secrets.token_urlsafe(48))")}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-480}
+      CORS_ORIGINS: ${PUBLIC_URL:-http://localhost:8080}
+      TRUST_PROXY_HEADERS: "true"          # behind the nginx container
+    volumes:
+      - ml-artifacts:/app/ml/artifacts     # trained models, written by the seed command
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      secrets: [extra_ca]
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  ml-artifacts:
+
+secrets:
+  # Optional root CA for builds behind TLS-inspecting proxies/antivirus (empty placeholder by default).
+  extra_ca:
+    file: ${EXTRA_CA_CERT:-./docker/no-extra-ca.pem}

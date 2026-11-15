@@ -1,11 +1,13 @@
-"""Test fixtures: an isolated temporary SQLite DB with a minimal set of users."""
+"""Test fixtures: an isolated database (temporary SQLite, or TEST_DATABASE_URL) with a minimal set of users."""
 import os
 import tempfile
 
 # Must be set before the app (and its engine) is imported.
 _tmpdir = tempfile.mkdtemp(prefix="dentaliq-test-")
-os.environ["DATABASE_URL"] = f"sqlite:///{os.path.join(_tmpdir, 'test.db')}"
-os.environ["JWT_SECRET"] = "test-secret"
+# CI also runs the suite against PostgreSQL by setting TEST_DATABASE_URL (the DB is wiped by the fixtures).
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{os.path.join(_tmpdir, 'test.db')}"
+os.environ["APP_ENV"] = "development"
+os.environ["JWT_SECRET"] = "test-only-secret-0123456789-abcdefghijklmnopqrstuvwxyz"
 os.environ["ML_ARTIFACT_DIR"] = os.path.join(_tmpdir, "artifacts")
 
 import pytest  # noqa: E402
