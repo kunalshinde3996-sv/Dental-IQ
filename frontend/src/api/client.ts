@@ -5,6 +5,22 @@ const TOKEN_KEY = 'dentaliq.token'
 // Generous enough to ride out a free-tier host cold start (first request after idle can take ~60s).
 const REQUEST_TIMEOUT_MS = 90_000
 const WAKING_MESSAGE = 'Waking up the server, this can take up to a minute on first load. Please retry in a moment.'
+const RETRY_DELAY_MS = 3_000
+
+/** One fetch with a timeout; 'unreachable' for timeouts and dropped connections. */
+async function attempt(url: URL, init: RequestInit): Promise<Response | 'unreachable'> {
+  // Never leave the UI spinning forever on a stuck connection.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } catch {
+    // Timeouts and dropped connections are almost always the backend spinning up from idle.
+    return 'unreachable'
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 export function getToken(): string | null {
   try {
@@ -80,23 +96,22 @@ export async function request<T>(
   if (token) headers.Authorization = `Bearer ${token}`
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
 
-  // Never leave the UI spinning forever on a stuck connection.
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-  let res: Response
-  try {
-    res = await fetch(url, {
-      method,
-      headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-      signal: controller.signal,
-    })
-  } catch {
-    // Timeouts and dropped connections are almost always the backend spinning up from idle.
-    throw new ApiError(0, WAKING_MESSAGE)
-  } finally {
-    clearTimeout(timer)
+  const init: RequestInit = {
+    method,
+    headers,
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   }
+
+  // One automatic retry covers most cold starts without the user seeing an error.
+  // A timeout/504 on a write may already have been applied server-side, so only
+  // read requests retry those; 502/503 mean the backend never handled it.
+  const safe = method === 'GET' || method === 'HEAD'
+  let res = await attempt(url, init)
+  if (res === 'unreachable' ? safe : res.status === 502 || res.status === 503 || (safe && res.status === 504)) {
+    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS))
+    res = await attempt(url, init)
+  }
+  if (res === 'unreachable') throw new ApiError(0, WAKING_MESSAGE)
 
   if (res.status === 204) return undefined as T
   const body: unknown = await res.json().catch(() => null)
