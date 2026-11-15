@@ -2,7 +2,9 @@
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const TOKEN_KEY = 'dentaliq.token'
-const REQUEST_TIMEOUT_MS = 30_000
+// Generous enough to ride out a free-tier host cold start (first request after idle can take ~60s).
+const REQUEST_TIMEOUT_MS = 90_000
+const WAKING_MESSAGE = 'Waking up the server, this can take up to a minute on first load. Please retry in a moment.'
 
 export function getToken(): string | null {
   try {
@@ -90,9 +92,8 @@ export async function request<T>(
       signal: controller.signal,
     })
   } catch {
-    throw new ApiError(0, controller.signal.aborted
-      ? 'The server took too long to respond. Please retry.'
-      : 'Cannot reach the server. Is the backend running?')
+    // Timeouts and dropped connections are almost always the backend spinning up from idle.
+    throw new ApiError(0, WAKING_MESSAGE)
   } finally {
     clearTimeout(timer)
   }
@@ -101,6 +102,10 @@ export async function request<T>(
   const body: unknown = await res.json().catch(() => null)
   if (!res.ok) {
     if (res.status === 401 && token) onUnauthorized?.()
+    // The hosting proxy answers 502/503/504 while the backend is still booting.
+    if ((res.status === 502 || res.status === 503 || res.status === 504) && typeof (body as { detail?: unknown } | null)?.detail !== 'string') {
+      throw new ApiError(res.status, WAKING_MESSAGE)
+    }
     throw parseError(res.status, body)
   }
   return body as T
