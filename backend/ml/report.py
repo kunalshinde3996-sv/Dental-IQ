@@ -26,6 +26,14 @@ def oral_section(b: dict) -> str:
     coef_rows = "\n".join(
         f"| {name} | {c:+.2f} | {pow(2.718281828, c):.2f}× |" for name, c in zip(b["features"], b["coef"])
     )
+    habit_features = {"smokeless_current", "smokeless_former", "smoking_current", "smoking_former", "alcohol_current"}
+    negative = [n for n, c in zip(b["features"], b["coef"]) if n in habit_features and c < 0]
+    caution = (
+        f"\n> **Caution:** {', '.join(f'`{n}`' for n in negative)} came out negative. The generator gives every habit "
+        f"a *positive* effect; with only {b['n_positive']} positive patients these smaller effects are not "
+        f"recoverable, so this must **not** be read as protective. It is a reason to collect more data, not a finding.\n"
+        if negative else ""
+    )
     return f"""
 ## 1. Oral cancer / PMD risk screening
 
@@ -62,7 +70,7 @@ Reference patient: 40-year-old woman, never used tobacco/alcohol, urban taluka, 
 |---|---|---|
 | (intercept) | {b['intercept']:+.2f} | — |
 {coef_rows}
-
+{caution}
 ### Explainability
 The model is linear in log-odds, so every prediction is decomposed **exactly** into per-factor
 contributions (`coef × value`). `POST /api/patients/{{id}}/risk-screening` returns the top factors with

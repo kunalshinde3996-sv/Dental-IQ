@@ -55,6 +55,8 @@ Reference patient: 40-year-old woman, never used tobacco/alcohol, urban taluka, 
 | rural_taluka | +0.26 | 1.29× |
 | lesion_observed | +2.67 | 14.40× |
 
+> **Caution:** `alcohol_current` came out negative. The generator gives every habit a *positive* effect; with only 36 positive patients these smaller effects are not recoverable, so this must **not** be read as protective. It is a reason to collect more data, not a finding.
+
 ### Explainability
 The model is linear in log-odds, so every prediction is decomposed **exactly** into per-factor
 contributions (`coef × value`). `POST /api/patients/{id}/risk-screening` returns the top factors with

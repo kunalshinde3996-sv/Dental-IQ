@@ -2,6 +2,7 @@
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const TOKEN_KEY = 'dentaliq.token'
+const REQUEST_TIMEOUT_MS = 30_000
 
 export function getToken(): string | null {
   try {
@@ -77,15 +78,23 @@ export async function request<T>(
   if (token) headers.Authorization = `Bearer ${token}`
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
 
+  // Never leave the UI spinning forever on a stuck connection.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   let res: Response
   try {
     res = await fetch(url, {
       method,
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
     })
   } catch {
-    throw new ApiError(0, 'Cannot reach the server. Is the backend running?')
+    throw new ApiError(0, controller.signal.aborted
+      ? 'The server took too long to respond. Please retry.'
+      : 'Cannot reach the server. Is the backend running?')
+  } finally {
+    clearTimeout(timer)
   }
 
   if (res.status === 204) return undefined as T
