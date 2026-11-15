@@ -71,7 +71,7 @@ export function PatientPrintPage() {
         <Button onClick={() => window.print()}>Print / Save as PDF</Button>
       </div>
 
-      <article className="mx-auto max-w-4xl space-y-5 bg-white p-8 text-slate-900 shadow print:max-w-none print:p-0 print:shadow-none">
+      <article className="mx-auto max-w-4xl space-y-5 bg-white p-4 text-slate-900 shadow sm:p-8 print:max-w-none print:p-0 print:shadow-none">
         <header className="flex items-start justify-between gap-4">
           <div>
             <Logo className="text-slate-900" />
@@ -112,17 +112,17 @@ export function PatientPrintPage() {
         <Section title="Dental chart (latest finding per tooth)" keepTogether={false}>
           {chart.length === 0 && <p className="text-sm text-slate-500">No tooth findings recorded.</p>}
           {(permanent.length > 0 || primary.length === 0) && chart.length > 0 && (
-            <ToothChart findings={permanent} readOnly preferredDentition="permanent" hideDentitionToggle />
+            <div className="overflow-x-auto print:overflow-visible"><ToothChart findings={permanent} readOnly preferredDentition="permanent" hideDentitionToggle /></div>
           )}
           {primary.length > 0 && (
-            <div className="mt-4"><ToothChart findings={primary} readOnly preferredDentition="primary" hideDentitionToggle /></div>
+            <div className="mt-4 overflow-x-auto print:overflow-visible"><ToothChart findings={primary} readOnly preferredDentition="primary" hideDentitionToggle /></div>
           )}
-          {chart.length > 0 && <div className="mt-4"><FindingsTable findings={chart} /></div>}
+          {chart.length > 0 && <div className="mt-4 overflow-x-auto print:overflow-visible"><FindingsTable findings={chart} /></div>}
         </Section>
 
         <Section title={`Visit history (${recorded.length})`} keepTogether={false}>
           {recorded.length === 0 ? <p className="text-sm text-slate-500">No recorded visits.</p> : (
-            <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto print:overflow-visible"><table className="w-full text-left text-xs">
               <thead className="text-slate-500">
                 <tr><th className="py-1 pr-2">Date</th><th className="py-1 pr-2">Department</th><th className="py-1 pr-2">Diagnosis</th><th className="py-1 pr-2">Procedure</th><th className="py-1 pr-2">Clinician</th><th className="py-1">Status</th></tr>
               </thead>
@@ -138,7 +138,7 @@ export function PatientPrintPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </Section>
 
