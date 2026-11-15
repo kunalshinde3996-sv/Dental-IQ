@@ -20,7 +20,7 @@ malignancy)?
 |---|---|
 | Model | L2 logistic regression (`C=1.0`), scikit-learn |
 | Unit / population | adult patients (18+) with ≥1 submitted/approved case |
-| Training rows | 296 (PMD-positive: 38, 12.8%) |
+| Training rows | 298 (PMD-positive: 36, 12.1%) |
 | Label | any PMD diagnosis, same keyword definition as the analytics (`services/clinical_terms.py`) |
 | Features | age (decades above 40), male, current/former smokeless tobacco (gutkha/khaini/mishri), current/former smoking, current alcohol, habit duration, rural-belt taluka (taluka-derived), lesion observed |
 | Risk levels | Low < 0.15 ≤ Medium < 0.40 ≤ High |
@@ -30,8 +30,8 @@ malignancy)?
 
 | Model | ROC AUC | Precision / recall @ Medium+ | Precision / recall @ High |
 |---|---|---|---|
-| Full model | **0.863** | 0.51 / 0.82 (flagged 61, TP 31) | 0.53 / 0.45 (flagged 32, TP 17) |
-| Ablation: without *lesion observed* | 0.628 | 0.23 / 0.47 (flagged 78, TP 18) | 0.33 / 0.08 (flagged 9, TP 3) |
+| Full model | **0.858** | 0.47 / 0.78 (flagged 60, TP 28) | 0.65 / 0.47 (flagged 26, TP 17) |
+| Ablation: without *lesion observed* | 0.699 | 0.24 / 0.47 (flagged 70, TP 17) | 0.31 / 0.11 (flagged 13, TP 4) |
 
 The *lesion observed* feature is partly label-adjacent: leukoplakia cases record a lesion finding
 in the same visit. The ablation row shows the signal that comes from **habits and demographics alone**,
@@ -43,22 +43,69 @@ Reference patient: 40-year-old woman, never used tobacco/alcohol, urban taluka, 
 
 | Feature | Coefficient | Odds × |
 |---|---|---|
-| (intercept) | -3.77 | — |
-| age_decades | +0.24 | 1.27× |
-| male | +0.50 | 1.65× |
-| smokeless_current | +1.23 | 3.40× |
-| smokeless_former | +0.17 | 1.18× |
-| smoking_current | +0.05 | 1.05× |
-| smoking_former | +0.70 | 2.01× |
-| alcohol_current | -0.14 | 0.87× |
-| habit_decades | +0.11 | 1.12× |
-| rural_taluka | +0.15 | 1.16× |
-| lesion_observed | +2.90 | 18.23× |
+| (intercept) | -3.66 | — |
+| age_decades | +0.44 | 1.55× |
+| male | +0.34 | 1.41× |
+| smokeless_current | +1.24 | 3.45× |
+| smokeless_former | +0.88 | 2.41× |
+| smoking_current | +0.24 | 1.27× |
+| smoking_former | +0.37 | 1.44× |
+| alcohol_current | -0.43 | 0.65× |
+| habit_decades | +0.11 | 1.11× |
+| rural_taluka | +0.26 | 1.29× |
+| lesion_observed | +2.67 | 14.40× |
 
 ### Explainability
 The model is linear in log-odds, so every prediction is decomposed **exactly** into per-factor
 contributions (`coef × value`). `POST /api/patients/{id}/risk-screening` returns the top factors with
 their odds multipliers plus a rule-based suggested action (refer for biopsy, cessation counselling, recall).
+
+
+## 2. Explainable at-risk student alerts
+
+| Item | Value |
+|---|---|
+| Unit | student (all years), features computed as of training day |
+| Features | attendance % (last 12 weeks), attendance trend (last 4 weeks minus weeks 5–12), marks average %, marks trend (latest exam minus first, per subject), clinical quota pace vs cohort median (clinical years), case rejection rate |
+| Rules | transparent thresholds, e.g. attendance < 75% (DCI requirement), drop ≥ 10 points, marks < 50%, pace < 60% of cohort median, rejection rate > 20% |
+| Model | L2 logistic regression on standardised features (`class_weight="balanced"`) |
+| Labels for training | **weak supervision**: a student is labelled at-risk if any *critical* rule fires. Real deployments should use historical outcomes (detained / failed / repeated year) instead. |
+| Final alert (hybrid) | High = critical rule **or** score ≥ 0.8 · Medium = any rule **or** score ≥ 0.5 · otherwise Low. (The score cut-offs were moved from 0.7/0.4 to 0.8/0.5 after a first evaluation on this same data, so the hybrid numbers below are optimistic.) |
+| Artifact | `backend/ml/artifacts/student_risk.joblib` |
+| Training rows | 60 (weak positives: 10) |
+
+The model adds a **continuous, comparable score** and catches combinations of several "almost" signals
+that no single rule fires on. The rules supply the plain-language **reasons**; the model's per-feature
+contributions are shown alongside them.
+
+### Evaluation against the deliberately at-risk seeded students
+
+Ground truth comes from the seed's hidden student profiles (`ml/artifacts/seed_ground_truth.json`).
+It is **never stored in the database and never used for training**.
+
+| Detector | Precision | Recall | F1 | Flagged | True positives |
+|---|---|---|---|---|---|
+| Rules only (any flag) | 0.67 | 1.00 | 0.80 | 15 | 10 |
+| Model only (score ≥ 0.5) | 0.91 | 1.00 | 0.95 | 11 | 10 |
+| **Hybrid: High alerts** | 1.00 | 1.00 | 1.00 | 10 | 10 |
+| Hybrid: High + Medium (watch list) | 0.62 | 1.00 | 0.77 | 16 | 10 |
+
+- Ground-truth at-risk students: 10 of 60.
+- Missed by the hybrid (High + Medium): none
+- On the watch list but not designed at-risk: GDC2023047, GDC2022057, GDC2023042, GDC2025021, GDC2022050, GDC2026005. These are typical students whose random
+  draws crossed a *warning* threshold (e.g. quota pace 70–80% of cohort median); they are shown
+  as **Medium**, not High.
+
+### Model coefficients (standardised features)
+
+| Feature | Coefficient |
+|---|---|
+| attendance_pct | -1.08 |
+| attendance_trend | -0.74 |
+| marks_avg | -0.72 |
+| marks_trend | -0.70 |
+| pace_ratio | -1.30 |
+| rejection_rate | +0.40 |
 
 
 ## Limitations

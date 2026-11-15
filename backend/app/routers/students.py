@@ -1,4 +1,6 @@
 """Student profiles, competency (case log + quota progress) and attendance summary."""
+from datetime import date, timedelta
+
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, or_
 from sqlmodel import select
@@ -12,6 +14,7 @@ from app.schemas.common import Page
 from app.schemas.users import StudentRead
 from app.services.cases import case_query, to_case_read
 from app.services.people import get_student_read, student_read
+from app.services.academic_policy import ATTENDANCE_WINDOW_DAYS
 from app.services.quota import student_quota_progress
 
 router = APIRouter(prefix="/api/students", tags=["students"])
@@ -89,11 +92,19 @@ def quota_progress(student_id: int, session: SessionDep, user: CurrentUser):
 
 
 @router.get("/{student_id}/attendance-summary", response_model=AttendanceSummary)
-def attendance_summary(student_id: int, session: SessionDep, user: CurrentUser):
+def attendance_summary(
+    student_id: int,
+    session: SessionDep,
+    user: CurrentUser,
+    days: int = Query(default=ATTENDANCE_WINDOW_DAYS, ge=1, le=3650,
+                      description="Look-back window; default matches the at-risk alerts (12 weeks)"),
+):
     resolve_student(session, user, student_id)
+    today = date.today()
     rows = session.exec(
         select(Attendance.session, Attendance.status, func.count())
-        .where(Attendance.student_id == student_id)
+        .where(Attendance.student_id == student_id, Attendance.date > today - timedelta(days=days),
+               Attendance.date <= today)
         .group_by(Attendance.session, Attendance.status)
     ).all()
 

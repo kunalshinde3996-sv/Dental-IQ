@@ -35,8 +35,9 @@ def train_all(report: bool = True, verbose: bool = True) -> dict:
             results["student_risk"] = student_risk.train(session)
             ev = results["student_risk"]["evaluation"]
             if ev:
-                say(f"  student_risk: hybrid P/R vs seeded ground truth = "
-                    f"{ev['hybrid']['precision']}/{ev['hybrid']['recall']}")
+                say(f"  student_risk vs seeded ground truth: High alerts P/R = "
+                    f"{ev['hybrid_high']['precision']}/{ev['hybrid_high']['recall']}, "
+                    f"High+Medium P/R = {ev['hybrid']['precision']}/{ev['hybrid']['recall']}")
 
     if report:
         write_report(results, REPORT_PATH)

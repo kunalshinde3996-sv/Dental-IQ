@@ -329,3 +329,52 @@ export interface RiskScreening {
   model: { version: string; trained_at: string; auc_cv: number | null; n_train: number; thresholds: Record<string, number> }
   disclaimer: string
 }
+
+// ---------------------------------------------------------------- Phase 2: student intelligence
+
+export interface AlertReason {
+  code: string
+  severity: 'critical' | 'warning'
+  text: string
+}
+
+export interface StudentSignals {
+  attendance_pct: number | null
+  attendance_recent_pct: number | null
+  attendance_prior_pct: number | null
+  attendance_trend: number | null
+  marks_avg: number | null
+  marks_trend: number | null
+  weakest_subject: string | null
+  weakest_subject_pct: number | null
+  is_clinical: boolean
+  quota_percent: number | null
+  cohort_median_percent: number | null
+  pace_ratio: number | null
+  quota_gaps: { department: Department; approved: number; required: number; remaining: number; percent: number }[]
+  reviewed_cases: number
+  rejected_cases: number
+  rejection_rate: number | null
+}
+
+export interface StudentAlert {
+  student_id: number
+  name: string
+  roll_no: string
+  year: StudentYear
+  risk_level: RiskLevel
+  score: number | null
+  reasons: AlertReason[]
+  suggested_actions: string[]
+  model_factors: { feature: string; label: string; contribution: number; z_score: number; direction: 'raises' | 'lowers' }[]
+  signals: StudentSignals
+  weekly_attendance: { weeks_ago: number; pct: number | null }[]
+}
+
+export interface FocusAreas {
+  student_id: number
+  on_track: boolean
+  items: { area: string; title: string; message: string }[]
+  strengths: string[]
+  summary: string
+}

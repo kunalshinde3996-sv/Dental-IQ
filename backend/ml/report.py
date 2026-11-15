@@ -76,13 +76,14 @@ def student_section(b: dict) -> str:
     if ev:
         eval_rows = "\n".join(
             f"| {name} | {m['precision']:.2f} | {m['recall']:.2f} | {m['f1']:.2f} | {m['flagged']} | {m['true_positives']} |"
-            for name, m in (("Rules only", ev["rules"]), ("Model only (score ≥ 0.5)", ev["model"]),
-                            ("**Hybrid (final alert)**", ev["hybrid"]))
+            for name, m in (("Rules only (any flag)", ev["rules"]), ("Model only (score ≥ 0.5)", ev["model"]),
+                            ("**Hybrid: High alerts**", ev["hybrid_high"]),
+                            ("Hybrid: High + Medium (watch list)", ev["hybrid"]))
         )
         missed = ", ".join(ev["missed"]) or "none"
         extra = ", ".join(ev["false_alarms"]) or "none"
         eval_md = f"""
-### Evaluation against the 10 deliberately at-risk seeded students
+### Evaluation against the deliberately at-risk seeded students
 
 Ground truth comes from the seed's hidden student profiles (`ml/artifacts/seed_ground_truth.json`).
 It is **never stored in the database and never used for training**.
@@ -92,8 +93,10 @@ It is **never stored in the database and never used for training**.
 {eval_rows}
 
 - Ground-truth at-risk students: {ev['positives']} of {ev['students']}.
-- Missed by the hybrid alert: {missed}
-- Flagged but not designed at-risk: {extra}
+- Missed by the hybrid (High + Medium): {missed}
+- On the watch list but not designed at-risk: {extra}. These are typical students whose random
+  draws crossed a *warning* threshold (e.g. quota pace 70–80% of cohort median); they are shown
+  as **Medium**, not High.
 """
     else:
         eval_md = "\n*(No seed ground-truth file found — evaluation skipped.)*\n"
@@ -108,7 +111,7 @@ It is **never stored in the database and never used for training**.
 | Rules | transparent thresholds, e.g. attendance < 75% (DCI requirement), drop ≥ 10 points, marks < 50%, pace < 60% of cohort median, rejection rate > 20% |
 | Model | L2 logistic regression on standardised features (`class_weight="balanced"`) |
 | Labels for training | **weak supervision**: a student is labelled at-risk if any *critical* rule fires. Real deployments should use historical outcomes (detained / failed / repeated year) instead. |
-| Final alert (hybrid) | High = critical rule **or** score ≥ 0.7 · Medium = any rule **or** score ≥ 0.4 · otherwise Low |
+| Final alert (hybrid) | High = critical rule **or** score ≥ 0.8 · Medium = any rule **or** score ≥ 0.5 · otherwise Low. (The score cut-offs were moved from 0.7/0.4 to 0.8/0.5 after a first evaluation on this same data, so the hybrid numbers below are optimistic.) |
 | Artifact | `backend/ml/artifacts/student_risk.joblib` |
 | Training rows | {b['n_train']} (weak positives: {b['n_positive']}) |
 

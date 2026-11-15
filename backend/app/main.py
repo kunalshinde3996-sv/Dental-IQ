@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.config import get_settings
 from app.database import create_db_and_tables
-from app.routers import academic, admin, analytics, auth, cases, faculty, patients, students
+from app.routers import academic, admin, analytics, auth, cases, faculty, intelligence, patients, students
 
 settings = get_settings()
 logger = logging.getLogger("dental_iq")
@@ -55,7 +55,7 @@ async def integrity_error_handler(_request: Request, exc: IntegrityError) -> JSO
 
 
 for router in (auth.router, patients.router, cases.router, students.router, faculty.router,
-               academic.router, admin.router, analytics.router):
+               academic.router, admin.router, analytics.router, intelligence.router):
     app.include_router(router)
 
 

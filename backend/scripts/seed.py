@@ -110,6 +110,11 @@ def weak_marks() -> dict:
     return {"marks_mean": RNG.uniform(0.40, 0.48), "marks_trend": -0.06, "reject_prob": RNG.uniform(0.25, 0.35)}
 
 
+def sloppy_clinician() -> dict:
+    # Decent attendance and marks, but many cases bounced by faculty and slow clinical progress.
+    return {"reject_prob": RNG.uniform(0.35, 0.45), "case_weight": RNG.uniform(0.45, 0.55)}
+
+
 # (year, index within year) -> overrides making that student at-risk
 AT_RISK_DESIGN: dict[tuple[StudentYear, int], tuple[str, dict]] = {
     (StudentYear.bds1, 0): ("low attendance", low_attendance()),
@@ -121,6 +126,7 @@ AT_RISK_DESIGN: dict[tuple[StudentYear, int], tuple[str, dict]] = {
     (StudentYear.bds3, 2): ("weak marks", weak_marks()),
     (StudentYear.bds4, 1): ("low cases", low_cases()),
     (StudentYear.bds4, 2): ("low attendance + weak marks", {**low_attendance(), **weak_marks()}),
+    (StudentYear.bds4, 3): ("high rejection rate + slow clinical pace", sloppy_clinician()),
     (StudentYear.intern, 0): ("low cases", low_cases()),
 }
 

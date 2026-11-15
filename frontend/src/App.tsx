@@ -7,6 +7,7 @@ import { AdminFacultyPage, AdminOverviewPage, AdminStudentsPage } from './pages/
 import { CaseDetailPage } from './pages/cases/CaseDetailPage'
 import { CaseFormPage } from './pages/cases/CaseFormPage'
 import { ApprovalsPage } from './pages/faculty/ApprovalsPage'
+import { AtRiskStudentsPage } from './pages/faculty/AtRiskStudentsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PatientFormPage } from './pages/patients/PatientFormPage'
 import { PatientProfilePage } from './pages/patients/PatientProfilePage'
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="approvals" element={<RequireAuth roles={['faculty']}><ApprovalsPage /></RequireAuth>} />
 
             {/* Faculty + admin: Phase-2 intelligence */}
+            <Route path="at-risk" element={<RequireAuth roles={['faculty', 'admin']}><AtRiskStudentsPage /></RequireAuth>} />
             <Route path="insights" element={<RequireAuth roles={['faculty', 'admin']}><PopulationInsightsPage /></RequireAuth>} />
 
             {/* Admin */}

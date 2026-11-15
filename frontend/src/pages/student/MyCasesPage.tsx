@@ -7,6 +7,7 @@ import { Card, CardHeader, EmptyState, ErrorBanner, PageHeader, Pagination, Spin
 import { formatDate } from '../../lib/format'
 import { CASE_STATUS, DEPARTMENT_SHORT, entries } from '../../lib/labels'
 import { useApi } from '../../lib/useApi'
+import { FocusAreasCard } from './FocusAreasCard'
 import { QuotaProgressCard } from './QuotaProgressCard'
 
 const PAGE_SIZE = 15
@@ -42,7 +43,7 @@ export function MyCasesPage() {
           {quota.data && <QuotaProgressCard progress={quota.data} />}
         </div>
         <Card>
-          <CardHeader title="Attendance" subtitle="Last 3 months" />
+          <CardHeader title="Attendance" subtitle="Last 12 weeks" />
           <div className="p-5">
             {att === undefined ? (
               attendance.error ? <ErrorBanner message={attendance.error} /> : <Spinner />
@@ -61,6 +62,10 @@ export function MyCasesPage() {
             )}
           </div>
         </Card>
+      </div>
+
+      <div className="mb-6">
+        <FocusAreasCard studentId={studentId} />
       </div>
 
       <Card>

@@ -123,3 +123,62 @@ def test_risk_screening_endpoint(seeded):
     assert known["model_risk_level"] in ("Low", "Medium", "High")
 
     assert seeded.post("/api/patients/999999/risk-screening", headers=h).status_code == 404
+
+
+# --- Step 3: explainable at-risk student alerts -------------------------------------------
+
+def _ground_truth() -> dict[str, bool]:
+    from ml.student_risk import load_ground_truth
+
+    gt = load_ground_truth()
+    assert gt is not None
+    return gt
+
+
+def test_alerts_find_every_designed_at_risk_student(seeded):
+    alerts = seeded.get("/api/alerts/students", headers=auth(seeded, "faculty@gdch.demo")).json()
+    gt = _ground_truth()
+    assert len(alerts) == len(gt) == 60
+    assert sum(gt.values()) == 10
+    by_roll = {a["roll_no"]: a for a in alerts}
+    for roll, at_risk in gt.items():
+        if at_risk:
+            a = by_roll[roll]
+            assert a["risk_level"] == "High", roll
+            assert a["reasons"] and a["suggested_actions"], roll  # never a bare score
+    # Highest risk first
+    order = {"High": 0, "Medium": 1, "Low": 2}
+    levels = [order[a["risk_level"]] for a in alerts]
+    assert levels == sorted(levels)
+
+
+def test_alert_numbers_match_other_pages(seeded):
+    h = auth(seeded, "faculty@gdch.demo")
+    alerts = seeded.get("/api/alerts/students", headers=h).json()
+    a = next(x for x in alerts if x["signals"]["is_clinical"])
+    summary = seeded.get(f"/api/students/{a['student_id']}/attendance-summary", headers=h).json()
+    assert summary["percentage"] == a["signals"]["attendance_pct"]
+    quota = seeded.get(f"/api/students/{a['student_id']}/quota-progress", headers=h).json()
+    assert quota["overall_percent"] == a["signals"]["quota_percent"]
+
+
+def test_student_risk_evaluation_recorded():
+    from ml.common import load_bundle
+
+    ev = load_bundle("student_risk")["evaluation"]
+    assert ev["positives"] == 10
+    assert ev["hybrid"]["recall"] == 1.0 and ev["hybrid_high"]["recall"] == 1.0
+
+
+def test_alerts_and_focus_access(seeded):
+    student = auth(seeded, "atrisk.student@gdch.demo")
+    assert seeded.get("/api/alerts/students", headers=student).status_code == 403
+    me = seeded.get("/api/auth/me", headers=student).json()["student"]["id"]
+    focus = seeded.get(f"/api/students/{me}/focus-areas", headers=student).json()
+    assert focus["on_track"] is False and focus["items"]
+    assert all("risk" not in i["message"].lower() for i in focus["items"])  # gentle wording
+    strong = auth(seeded, "student@gdch.demo")
+    strong_id = seeded.get("/api/auth/me", headers=strong).json()["student"]["id"]
+    assert seeded.get(f"/api/students/{strong_id}/focus-areas", headers=student).status_code == 403
+    assert seeded.get(f"/api/students/{strong_id}/focus-areas", headers=strong).json()["on_track"] is True
+    assert seeded.get(f"/api/students/{me}/risk", headers=student).status_code == 403

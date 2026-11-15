@@ -18,6 +18,8 @@ import type {
   PopulationQuery,
   PopulationReport,
   RiskScreening,
+  StudentAlert,
+  FocusAreas,
   StudentQuotaProgress,
   StudentRead,
   StudentYear,
@@ -79,4 +81,9 @@ export const adminApi = {
 
 export const analyticsApi = {
   population: (query: PopulationQuery) => request<PopulationReport>('GET', '/analytics/population', { query: { ...query } }),
+}
+
+export const intelligenceApi = {
+  alerts: () => request<StudentAlert[]>('GET', '/alerts/students'),
+  focusAreas: (studentId: number) => request<FocusAreas>('GET', `/students/${studentId}/focus-areas`),
 }
