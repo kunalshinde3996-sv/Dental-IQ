@@ -13,7 +13,7 @@ import { PatientExportActions } from './PatientExportActions'
 function Detail({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</dt>
+      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
       <dd className="mt-0.5 text-sm text-slate-800">{value || '—'}</dd>
     </div>
   )

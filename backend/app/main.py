@@ -19,6 +19,7 @@ from app.routers import (
     cases,
     faculty,
     intelligence,
+    overview,
     patients,
     students,
     trust,
@@ -91,7 +92,7 @@ async def integrity_error_handler(_request: Request, exc: IntegrityError) -> JSO
 
 for router in (auth.router, patients.router, cases.router, students.router, faculty.router,
                academic.router, admin.router, analytics.router, intelligence.router,
-               allocation.router, trust.router):
+               allocation.router, trust.router, overview.router):
     app.include_router(router)
 
 

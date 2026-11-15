@@ -25,7 +25,7 @@ function PendingCaseCard({ c, onReviewed }: { c: CaseRead; onReviewed: (updated:
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
           <span>{formatDate(c.visit_date)}</span>
-          <span className="text-slate-400">{open ? '▲' : '▼'}</span>
+          <span className="text-slate-500">{open ? '▲' : '▼'}</span>
         </div>
       </button>
       {open && (

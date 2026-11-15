@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useToast } from '../../lib/toast'
 import { Link } from 'react-router-dom'
 import { allocationApi } from '../../api'
 import type { AllocationRecommendation, CaseRead, Department } from '../../api/types'
@@ -33,6 +34,7 @@ export function AllocatePatientPage() {
   const [error, setError] = useState<string | null>(null)
   const [assigning, setAssigning] = useState<number | null>(null)
   const [assigned, setAssigned] = useState<CaseRead | null>(null)
+  const toast = useToast()
 
   async function find() {
     if (!patient || !department) return
@@ -53,10 +55,12 @@ export function AllocatePatientPage() {
     setAssigning(studentId)
     setError(null)
     try {
-      setAssigned(await allocationApi.assign({
+      const created = await allocationApi.assign({
         patient_id: patient.id, department, student_id: studentId,
         chief_complaint: complaint.trim() || DEFAULT_COMPLAINT[department],
-      }))
+      })
+      setAssigned(created)
+      toast.success(`Patient allocated to ${created.student_name}; they have been notified`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Assignment failed')
     } finally {
@@ -132,7 +136,7 @@ export function AllocatePatientPage() {
                         <span>{DEPARTMENTS[result.department]} quota</span>
                         <span className="tabular-nums">{c.approved}/{c.required}{c.pending ? ` (+${c.pending} pending)` : ''}</span>
                       </div>
-                      <ProgressBar percent={(c.approved / c.required) * 100} tone={c.approved / c.required < 0.25 ? 'rose' : 'brand'} />
+                      <ProgressBar percent={(c.approved / c.required) * 100} tone={c.approved / c.required < 0.25 ? 'rose' : 'brand'} label={`${c.name}: ${DEPARTMENTS[result.department]} quota`} />
                       <ul className="mt-3 space-y-1 text-sm text-slate-700">
                         {c.reasons.map((r) => <li key={r} className="flex gap-2"><span className="text-brand-600">›</span>{r}</li>)}
                       </ul>
@@ -143,7 +147,7 @@ export function AllocatePatientPage() {
                         {Object.entries(c.components).map(([k, v]) => (
                           <li key={k} className="text-xs">
                             <div className="flex justify-between text-slate-600">
-                              <span>{COMPONENT_LABEL[k]} <span className="text-slate-400">(×{result.weights[k]})</span></span>
+                              <span>{COMPONENT_LABEL[k]} <span className="text-slate-500">(×{result.weights[k]})</span></span>
                               <span className="tabular-nums">{Math.round(v * 100)}%</span>
                             </div>
                             <div className="mt-0.5 h-1.5 rounded-full bg-slate-100">

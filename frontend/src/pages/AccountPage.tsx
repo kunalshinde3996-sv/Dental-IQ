@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useToast } from '../lib/toast'
 import { authApi } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { Button, Card, CardHeader, ErrorBanner, Field, Input, PageHeader } from '../components/ui'
@@ -21,6 +22,7 @@ export function AccountPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  const toast = useToast()
   if (!me) return null
 
   const unmet = RULES.filter((r) => !r.test(next))
@@ -35,6 +37,7 @@ export function AccountPage() {
     try {
       await authApi.changePassword(current, next)
       setDone(true)
+      toast.success('Password changed')
       setCurrent('')
       setNext('')
       setConfirm('')
@@ -64,7 +67,7 @@ export function AccountPage() {
           <CardHeader title="Change password" subtitle="Your other sessions stay signed in until their tokens expire." />
           <form onSubmit={submit} className="space-y-4 p-5">
             {error && <ErrorBanner message={error} />}
-            {done && <p role="status" className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200">Password changed.</p>}
+            {done && <p className="text-sm text-slate-600">Password updated. Use it the next time you sign in.</p>}
             <Field label="Current password">
               <Input type="password" autoComplete="current-password" required value={current} onChange={(e) => setCurrent(e.target.value)} />
             </Field>

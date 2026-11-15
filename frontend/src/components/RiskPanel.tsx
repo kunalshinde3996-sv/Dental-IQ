@@ -97,7 +97,7 @@ export function RiskPanel({ patientId, lesionObserved, compact = false }: { pati
         <p className="text-xs text-slate-500">Includes the lesion charted in this visit.</p>
       )}
       {data.notes.map((n) => <p key={n} className="text-xs text-amber-700">{n}</p>)}
-      <p className="border-t border-slate-100 pt-2 text-[11px] leading-snug text-slate-400">
+      <p className="border-t border-slate-100 pt-2 text-[11px] leading-snug text-slate-500">
         Logistic-regression model v{data.model.version}, CV AUC {data.model.auc_cv ?? '—'} on {data.model.n_train} synthetic patients.
         Reference: 40-year-old non-user, urban, no lesion ({(data.baseline_probability * 100).toFixed(1)}%). {data.disclaimer}
       </p>

@@ -16,7 +16,7 @@ const HABITS: { key: keyof HabitFields; label: string }[] = [
 /** Oral-cancer risk habits at a glance: current = red, former = amber. */
 export function HabitBadges({ patient }: { patient: HabitFields }) {
   const shown = HABITS.filter((h) => patient[h.key] !== 'never')
-  if (shown.length === 0) return <span className="text-xs text-slate-400">None</span>
+  if (shown.length === 0) return <span className="text-xs text-slate-500">None</span>
   return (
     <div className="flex flex-wrap gap-1">
       {shown.map((h) =>

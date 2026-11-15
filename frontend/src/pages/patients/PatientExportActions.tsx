@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useToast } from '../../lib/toast'
 import { Link } from 'react-router-dom'
 import { patientsApi } from '../../api'
 import { Button } from '../../components/ui'
@@ -8,6 +9,7 @@ import { downloadJson } from '../../lib/download'
 export function PatientExportActions({ patientId, opdNumber }: { patientId: number; opdNumber: string }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const toast = useToast()
 
   async function exportFhir() {
     setBusy(true)
@@ -15,6 +17,7 @@ export function PatientExportActions({ patientId, opdNumber }: { patientId: numb
     try {
       const bundle = await patientsApi.fhirBundle(patientId)
       downloadJson(bundle, `${opdNumber}-fhir-bundle.json`, 'application/fhir+json')
+      toast.success('FHIR R4 bundle downloaded')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Export failed')
     } finally {

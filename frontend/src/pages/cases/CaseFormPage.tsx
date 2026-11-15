@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useToast } from '../../lib/toast'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { casesApi, facultyApi, patientsApi } from '../../api'
 import { ApiError } from '../../api/client'
@@ -19,6 +20,7 @@ export function CaseFormPage() {
   const editing = Boolean(id)
   const [params] = useSearchParams()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const [patient, setPatient] = useState<PickedPatient | null>(null)
   const [department, setDepartment] = useState<Department | ''>('')
@@ -123,6 +125,7 @@ export function CaseFormPage() {
       } else {
         saved = await casesApi.create({ ...body, submit: mode === 'submit' })
       }
+      toast.success(mode === 'submit' ? 'Case submitted for faculty approval' : 'Draft saved')
       navigate(`/cases/${saved.id}`, { replace: true })
     } catch (err) {
       if (err instanceof ApiError) {

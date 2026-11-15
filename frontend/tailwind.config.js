@@ -12,7 +12,7 @@ export default {
           300: '#7bdbd8',
           400: '#40c1c1',
           500: '#25a5a7',
-          600: '#1f848b',
+          600: '#1c7b82', // darkened from #1f848b: white text now 4.99:1 (WCAG AA)
           700: '#1f6a71',
           800: '#20575d',
           900: '#1f494f',

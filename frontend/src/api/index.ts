@@ -27,6 +27,7 @@ import type {
   ExamType,
   AuditEvent,
   AppNotification,
+  Overview,
   AllocationRecommendation,
   ResourceView,
   StudentQuotaProgress,
@@ -136,4 +137,8 @@ export const notificationsApi = {
   unreadCount: () => request<{ unread: number }>('GET', '/notifications/unread-count'),
   markRead: (id: number) => request<AppNotification>('POST', `/notifications/${id}/read`),
   markAllRead: () => request<{ unread: number }>('POST', '/notifications/read-all'),
+}
+
+export const overviewApi = {
+  get: () => request<Overview>('GET', '/overview'),
 }

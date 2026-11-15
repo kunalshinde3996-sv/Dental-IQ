@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useToast } from '../../lib/toast'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { patientsApi } from '../../api'
 import { ApiError } from '../../api/client'
@@ -63,6 +64,7 @@ export function PatientFormPage() {
   const { id } = useParams()
   const editing = Boolean(id)
   const navigate = useNavigate()
+  const toast = useToast()
   const [form, setForm] = useState<FormState>(EMPTY)
   const [loadingExisting, setLoadingExisting] = useState(editing)
   const [saving, setSaving] = useState(false)
@@ -97,6 +99,7 @@ export function PatientFormPage() {
     try {
       const payload = toPayload(form)
       const saved = editing ? await patientsApi.update(Number(id), payload) : await patientsApi.create(payload)
+      toast.success(editing ? 'Patient details saved' : `Patient registered as ${saved.opd_number}`)
       navigate(`/patients/${saved.id}`, { replace: editing })
     } catch (err) {
       if (err instanceof ApiError) {

@@ -503,3 +503,42 @@ export interface AppNotification {
   created_at: string
   read_at: string | null
 }
+
+// ---------------------------------------------------------------- Phase 3: role overview
+
+interface StaffOverview {
+  at_risk: Record<RiskLevel, number>
+  top_alerts: { student_id: number; name: string; roll_no: string; reason: string }[]
+  overloaded_departments: Department[]
+  short_supply_departments: Department[]
+}
+
+export interface Overview {
+  role: Role
+  unread_notifications: number
+  student?: {
+    quota_percent: number | null
+    quota_approved: number
+    quota_required: number
+    attendance_pct: number | null
+    marks_avg: number | null
+    cases: Record<CaseStatus, number>
+    focus: FocusAreas
+    next_department: Department | null
+  }
+  faculty?: StaffOverview & {
+    department: Department
+    pending_reviews: number
+    reviewed_by_me: number
+    department_load: { status: LoadStatus; cases_per_faculty: number | null; pending_reviews: number; reasons: string[] }
+  }
+  admin?: StaffOverview & {
+    students: number
+    faculty: number
+    patients: number
+    abha_linked_pct: number
+    cases: Record<CaseStatus, number>
+    audit_events_today: number
+    failed_logins_today: number
+  }
+}

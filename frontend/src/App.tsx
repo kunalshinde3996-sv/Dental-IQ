@@ -7,7 +7,7 @@ import { DepartmentLoadPage } from './pages/allocation/DepartmentLoadPage'
 import { PopulationInsightsPage } from './pages/analytics/PopulationInsightsPage'
 import { AccountPage } from './pages/AccountPage'
 import { AuditLogPage } from './pages/admin/AuditLogPage'
-import { AdminFacultyPage, AdminOverviewPage, AdminStudentsPage } from './pages/admin/AdminPages'
+import { AdminFacultyPage, AdminStudentsPage } from './pages/admin/AdminPages'
 import { CaseDetailPage } from './pages/cases/CaseDetailPage'
 import { CaseFormPage } from './pages/cases/CaseFormPage'
 import { ApprovalsPage } from './pages/faculty/ApprovalsPage'
@@ -15,6 +15,7 @@ import { AtRiskStudentsPage } from './pages/faculty/AtRiskStudentsPage'
 import { AttendancePage } from './pages/faculty/AttendancePage'
 import { MarksEntryPage } from './pages/faculty/MarksEntryPage'
 import { LoginPage } from './pages/LoginPage'
+import { OverviewPage } from './pages/OverviewPage'
 import { PatientFormPage } from './pages/patients/PatientFormPage'
 import { PatientPrintPage } from './pages/patients/PatientPrintPage'
 import { PatientProfilePage } from './pages/patients/PatientProfilePage'
@@ -48,6 +49,7 @@ export default function App() {
             <Route index element={<HomeRedirect />} />
 
             {/* Shared by all roles */}
+            <Route path="home" element={<OverviewPage />} />
             <Route path="patients" element={<PatientsListPage />} />
             <Route path="patients/new" element={<PatientFormPage />} />
             <Route path="patients/:id" element={<PatientProfilePage />} />
@@ -71,7 +73,7 @@ export default function App() {
             <Route path="insights" element={<RequireAuth roles={['faculty', 'admin']}><PopulationInsightsPage /></RequireAuth>} />
 
             {/* Admin */}
-            <Route path="admin" element={<RequireAuth roles={['admin']}><AdminOverviewPage /></RequireAuth>} />
+            <Route path="admin" element={<Navigate to="/home" replace />} />
             <Route path="admin/students" element={<RequireAuth roles={['admin']}><AdminStudentsPage /></RequireAuth>} />
             <Route path="admin/faculty" element={<RequireAuth roles={['admin']}><AdminFacultyPage /></RequireAuth>} />
             <Route path="audit" element={<RequireAuth roles={['admin']}><AuditLogPage /></RequireAuth>} />

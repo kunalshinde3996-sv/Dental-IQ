@@ -1,14 +1,15 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { patientsApi } from '../../api'
 import type { ToothFindingInput } from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
-import { Logo } from '../../components/AppLayout'
+import { Logo } from '../../components/Logo'
 import { RiskPanel } from '../../components/RiskPanel'
 import { FindingsTable, ToothChart, isPrimary } from '../../components/ToothChart'
-import { Button, ErrorBanner, Spinner, StatusBadge } from '../../components/ui'
+import { Button, ErrorBanner, Spinner, StatusBadge, useDocumentTitle } from '../../components/ui'
 import { formatDate } from '../../lib/format'
 import { DEPARTMENTS, HABITS, SEXES, TALUKAS } from '../../lib/labels'
+import { useTheme } from '../../lib/theme'
 import { useApi } from '../../lib/useApi'
 
 function Section({ title, children, keepTogether = true }: { title: string; children: ReactNode; keepTogether?: boolean }) {
@@ -43,6 +44,16 @@ export function PatientPrintPage() {
   const { id } = useParams()
   const { me } = useAuth()
   const patient = useApi(() => patientsApi.get(Number(id)), [id])
+  const { resolved } = useTheme()
+  useDocumentTitle(patient.data ? `${patient.data.name}: summary` : 'Patient summary')
+
+  // A printed record is always light, whatever the app theme.
+  useEffect(() => {
+    document.documentElement.classList.remove('dark')
+    return () => {
+      document.documentElement.classList.toggle('dark', resolved === 'dark')
+    }
+  }, [resolved])
 
   if (patient.error) return <div className="p-6"><ErrorBanner message={patient.error} /></div>
   if (!patient.data) return <Spinner label="Preparing summary…" />

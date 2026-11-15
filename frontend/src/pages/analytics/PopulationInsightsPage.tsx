@@ -14,7 +14,7 @@ import { analyticsApi } from '../../api'
 import type { Department, PopulationQuery, PopulationReport, Taluka } from '../../api/types'
 import { ChartTooltip, InsightCard, Legend, StatTile } from '../../components/charts'
 import { Button, Card, CardHeader, ErrorBanner, Field, Input, PageHeader, Select, Spinner, cx } from '../../components/ui'
-import { AXIS, DEPARTMENT_COLORS, GRID, PAIR, heat } from '../../lib/chartColors'
+import { heat, useChartTheme } from '../../lib/chartColors'
 import { DEPARTMENTS, DEPARTMENT_SHORT, TALUKAS, entries } from '../../lib/labels'
 import { useApi } from '../../lib/useApi'
 
@@ -121,6 +121,7 @@ function Report({ data }: { data: PopulationReport }) {
 }
 
 function TalukaSection({ data }: { data: PopulationReport }) {
+  const { AXIS, GRID, PAIR } = useChartTheme()
   const [metric, setMetric] = useState<(typeof CONDITIONS)[number]>('pmd')
   const rows = data.taluka_burden.filter((r) => r.patients > 0)
   const chartData = useMemo(
@@ -195,6 +196,7 @@ function TalukaSection({ data }: { data: PopulationReport }) {
 }
 
 function HabitSection({ data }: { data: PopulationReport }) {
+  const { AXIS, GRID, PAIR } = useChartTheme()
   const [outcome, setOutcome] = useState<(typeof OUTCOMES)[number]>('osmf')
   const rows = data.habit_associations.filter((r) => r.outcome === outcome)
   const chartData = rows.map((r) => ({ habit: r.habit_label, exposed: r.exposed_pct, unexposed: r.unexposed_pct }))
@@ -241,18 +243,18 @@ function HabitSection({ data }: { data: PopulationReport }) {
                 <tr key={r.habit}>
                   <td className="py-2 pr-3 font-medium text-slate-800">{r.habit_label}</td>
                   <td className="py-2 pr-3 text-right tabular-nums">
-                    {r.exposed_pct}% <span className="text-xs text-slate-400">({r.exposed_cases}/{r.exposed_n})</span>
+                    {r.exposed_pct}% <span className="text-xs text-slate-500">({r.exposed_cases}/{r.exposed_n})</span>
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums">
-                    {r.unexposed_pct}% <span className="text-xs text-slate-400">({r.unexposed_cases}/{r.unexposed_n})</span>
+                    {r.unexposed_pct}% <span className="text-xs text-slate-500">({r.unexposed_cases}/{r.unexposed_n})</span>
                   </td>
                   <td className="py-2 text-right tabular-nums">
                     {r.prevalence_ratio === null ? (
-                      <span className="text-slate-400">n/a</span>
+                      <span className="text-slate-500">n/a</span>
                     ) : (
                       <>
                         <span className={cx('font-semibold', r.ci_low! > 1 ? 'text-rose-700' : 'text-slate-700')}>{r.prevalence_ratio.toFixed(1)}×</span>{' '}
-                        <span className="text-xs text-slate-400">({r.ci_low}–{r.ci_high})</span>
+                        <span className="text-xs text-slate-500">({r.ci_low}–{r.ci_high})</span>
                       </>
                     )}
                   </td>
@@ -268,6 +270,7 @@ function HabitSection({ data }: { data: PopulationReport }) {
 }
 
 function CariesSection({ data }: { data: PopulationReport }) {
+  const { AXIS, GRID, PAIR } = useChartTheme()
   const chartData = data.caries_by_age_sex.map((r) => ({
     age: r.age_group,
     male: r.male.pct,
@@ -309,6 +312,7 @@ function CariesSection({ data }: { data: PopulationReport }) {
 }
 
 function TrendSection({ data }: { data: PopulationReport }) {
+  const { AXIS, GRID, DEPARTMENT_COLORS } = useChartTheme()
   const depts = entries(DEPARTMENTS)
   return (
     <Card>
@@ -357,6 +361,7 @@ function TrendSection({ data }: { data: PopulationReport }) {
 }
 
 function RankedList({ title, items }: { title: string; items: PopulationReport['top_terms']['diagnoses'] }) {
+  const { PAIR } = useChartTheme()
   const max = Math.max(...items.map((i) => i.count), 1)
   return (
     <div>

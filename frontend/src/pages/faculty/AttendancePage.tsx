@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useToast } from '../../lib/toast'
 import { attendanceApi, studentsApi } from '../../api'
 import type { AttendanceSessionType, AttendanceStatus, StudentRead, StudentYear } from '../../api/types'
 import { Button, Card, ErrorBanner, Field, Input, PageHeader, Select, Spinner, cx } from '../../components/ui'
@@ -25,6 +26,7 @@ export function AttendancePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
+  const toast = useToast()
 
   useEffect(() => {
     let cancelled = false
@@ -60,6 +62,7 @@ export function AttendancePage() {
       const res = await attendanceApi.bulk({ date, session, entries: students.map((s) => ({ student_id: s.id, status: marks[s.id] })) })
       setExisting(res.length)
       setSaved(`Saved ${res.length} records for ${YEARS[year]} · ${SESSIONS[session]} · ${date}.`)
+      toast.success(`Attendance saved for ${res.length} students`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save attendance')
     } finally {
@@ -87,7 +90,7 @@ export function AttendancePage() {
       </Card>
 
       {error && <div className="mb-4"><ErrorBanner message={error} /></div>}
-      {saved && <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200" role="status">{saved}</div>}
+      {saved && <p className="mb-4 text-sm text-slate-600">Last saved: {saved}</p>}
       {loading && <Spinner />}
       {!loading && students && (
         <Card>

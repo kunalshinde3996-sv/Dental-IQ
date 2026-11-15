@@ -4,7 +4,9 @@ import type { Role } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { initials } from '../lib/format'
 import { ROLES, YEARS } from '../lib/labels'
+import { Logo } from './Logo'
 import { NotificationBell } from './NotificationBell'
+import { ThemeToggle } from './ThemeToggle'
 import { cx } from './ui'
 
 interface NavItem {
@@ -32,11 +34,13 @@ const ICONS = {
 
 const NAV: Record<Role, NavItem[]> = {
   student: [
+    { to: '/home', label: 'Overview', icon: ICONS.home },
     { to: '/my-cases', label: 'My Cases', icon: ICONS.cases },
     { to: '/cases/new', label: 'New Case', icon: ICONS.plus },
     { to: '/patients', label: 'Patients', icon: ICONS.patients },
   ],
   faculty: [
+    { to: '/home', label: 'Overview', icon: ICONS.home },
     { to: '/approvals', label: 'Pending Approvals', icon: ICONS.check },
     { to: '/at-risk', label: 'At-Risk Students', icon: ICONS.alert },
     { to: '/allocate', label: 'Allocate Patient', icon: ICONS.route },
@@ -47,7 +51,7 @@ const NAV: Record<Role, NavItem[]> = {
     { to: '/patients', label: 'Patients', icon: ICONS.patients },
   ],
   admin: [
-    { to: '/admin', label: 'Overview', icon: ICONS.home },
+    { to: '/home', label: 'Overview', icon: ICONS.home },
     { to: '/admin/students', label: 'Students', icon: ICONS.students },
     { to: '/admin/faculty', label: 'Faculty', icon: ICONS.faculty },
     { to: '/at-risk', label: 'At-Risk Students', icon: ICONS.alert },
@@ -69,16 +73,6 @@ function Icon({ d, className }: { d: string; className?: string }) {
   )
 }
 
-export function Logo({ className }: { className?: string }) {
-  return (
-    <div className={cx('flex items-center gap-2', className)}>
-      <img src="/favicon.svg" alt="" className="h-8 w-8" />
-      <span className="text-lg font-semibold tracking-tight">
-        Dental<span className="text-brand-500">-IQ</span>
-      </span>
-    </div>
-  )
-}
 
 export function AppLayout() {
   const { me, logout } = useAuth()
@@ -97,11 +91,10 @@ export function AppLayout() {
         <NavLink
           key={item.to}
           to={item.to}
-          end={item.to === '/admin'}
           onClick={() => setMenuOpen(false)}
           className={({ isActive }) =>
             cx(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white',
               isActive ? 'bg-brand-600 text-white shadow-sm' : 'text-brand-100 hover:bg-brand-800 hover:text-white',
             )
           }
@@ -114,8 +107,10 @@ export function AppLayout() {
   )
 
   const userBox = (
+    <div className="space-y-2">
+    <ThemeToggle />
     <div className="flex items-center gap-3 rounded-lg bg-brand-800/60 p-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-500 text-sm font-semibold text-white">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white" aria-hidden>
         {initials(me.user.name)}
       </div>
       <Link to="/account" onClick={() => setMenuOpen(false)} className="min-w-0 flex-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white" title="Account settings">
@@ -127,12 +122,16 @@ export function AppLayout() {
         <Icon d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
       </button>
     </div>
+    </div>
   )
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <a href="#main-content" className="sr-only z-50 rounded-md bg-white px-4 py-2 text-sm font-medium text-brand-800 shadow focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+        Skip to main content
+      </a>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-brand-900 p-4 text-white lg:flex">
+      <aside aria-label="Main navigation" className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-brand-900 p-4 text-white lg:flex">
         <Logo className="mb-6 px-2 pt-1" />
         <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-4">{nav}</div>
         {userBox}
@@ -153,7 +152,7 @@ export function AppLayout() {
         </div>
       )}
 
-      <main className="lg:pl-64">
+      <main id="main-content" tabIndex={-1} className="focus:outline-none lg:pl-64">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Outlet />
         </div>

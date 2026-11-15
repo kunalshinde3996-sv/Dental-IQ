@@ -1,51 +1,9 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { adminApi, facultyApi, studentsApi } from '../../api'
+import { facultyApi, studentsApi } from '../../api'
 import type { StudentYear } from '../../api/types'
-import { Card, CardHeader, EmptyState, ErrorBanner, Input, PageHeader, Select, Spinner } from '../../components/ui'
-import { CASE_STATUS, DEPARTMENTS, YEARS, entries } from '../../lib/labels'
+import { Card, EmptyState, ErrorBanner, Input, PageHeader, Select, Spinner } from '../../components/ui'
+import { DEPARTMENTS, YEARS, entries } from '../../lib/labels'
 import { useApi, useDebounced } from '../../lib/useApi'
-
-export function AdminOverviewPage() {
-  const { data, error, loading, reload } = useApi(() => adminApi.stats(), [])
-  if (loading && !data) return <Spinner />
-  if (error) return <ErrorBanner message={error} onRetry={reload} />
-  if (!data) return null
-
-  const tiles = [
-    { label: 'Students', value: data.students, to: '/admin/students' },
-    { label: 'Faculty', value: data.faculty, to: '/admin/faculty' },
-    { label: 'Patients', value: data.patients, to: '/patients' },
-    { label: 'Clinical cases', value: data.cases },
-  ]
-  return (
-    <>
-      <PageHeader title="Overview" subtitle="Phase 1 · core records. Analytics dashboards arrive in Phase 2." />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {tiles.map((t) => {
-          const body = (
-            <Card className="p-5 transition hover:ring-brand-300">
-              <p className="text-sm text-slate-500">{t.label}</p>
-              <p className="mt-1 text-3xl font-semibold tabular-nums text-slate-900">{t.value.toLocaleString('en-IN')}</p>
-            </Card>
-          )
-          return t.to ? <Link key={t.label} to={t.to}>{body}</Link> : <div key={t.label}>{body}</div>
-        })}
-      </div>
-      <Card className="mt-6">
-        <CardHeader title="Cases by status" />
-        <dl className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-4">
-          {entries(CASE_STATUS).map((s) => (
-            <div key={s}>
-              <dt className="text-sm text-slate-500">{CASE_STATUS[s].label}</dt>
-              <dd className="text-xl font-semibold tabular-nums">{data.cases_by_status[s] ?? 0}</dd>
-            </div>
-          ))}
-        </dl>
-      </Card>
-    </>
-  )
-}
 
 export function AdminStudentsPage() {
   const [year, setYear] = useState<StudentYear | ''>('')

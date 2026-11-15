@@ -6,7 +6,7 @@ import { ChartTooltip } from '../../components/charts'
 import { Drawer } from '../../components/Drawer'
 import { RiskBadge } from '../../components/RiskPanel'
 import { Badge, Card, EmptyState, ErrorBanner, Input, PageHeader, Select, Spinner, cx } from '../../components/ui'
-import { AXIS, GRID, PAIR } from '../../lib/chartColors'
+import { useChartTheme } from '../../lib/chartColors'
 import { DEPARTMENT_SHORT, YEARS, entries } from '../../lib/labels'
 import { useApi } from '../../lib/useApi'
 
@@ -117,7 +117,7 @@ export function AtRiskStudentsPage() {
                   <tr key={a.student_id} className="cursor-pointer hover:bg-brand-50/40" onClick={() => setSelected(a)}>
                     <td className="px-4 py-3">
                       <RiskBadge level={a.risk_level} />
-                      {a.score !== null && <span className="ml-2 text-xs tabular-nums text-slate-400">{a.score.toFixed(2)}</span>}
+                      {a.score !== null && <span className="ml-2 text-xs tabular-nums text-slate-500">{a.score.toFixed(2)}</span>}
                     </td>
                     <td className="px-4 py-3">
                       <button className="text-left font-medium text-slate-900 hover:text-brand-700" onClick={(e) => { e.stopPropagation(); setSelected(a) }}>
@@ -153,6 +153,7 @@ export function AtRiskStudentsPage() {
 }
 
 function AlertDetail({ a }: { a: StudentAlert }) {
+  const { AXIS, GRID, PAIR } = useChartTheme()
   const s = a.signals
   const weekly = a.weekly_attendance.map((w) => ({ week: w.weeks_ago === 0 ? 'This wk' : `-${w.weeks_ago}w`, pct: w.pct }))
   return (
@@ -224,12 +225,12 @@ function AlertDetail({ a }: { a: StudentAlert }) {
           <ul className="space-y-1 text-sm">
             {a.model_factors.map((f) => (
               <li key={f.feature} className="flex justify-between gap-3">
-                <span className="text-slate-700">{f.label} <span className="text-xs text-slate-400">({f.z_score > 0 ? '+' : ''}{f.z_score} SD vs cohort)</span></span>
+                <span className="text-slate-700">{f.label} <span className="text-xs text-slate-500">({f.z_score > 0 ? '+' : ''}{f.z_score} SD vs cohort)</span></span>
                 <span className={cx('tabular-nums', f.direction === 'raises' ? 'text-rose-700' : 'text-emerald-700')}>{f.direction} {Math.abs(f.contribution).toFixed(2)}</span>
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-xs text-slate-400">Contributions in log-odds from standardised signals. Model trained on synthetic data.</p>
+          <p className="mt-2 text-xs text-slate-500">Contributions in log-odds from standardised signals. Model trained on synthetic data.</p>
         </section>
       )}
     </div>

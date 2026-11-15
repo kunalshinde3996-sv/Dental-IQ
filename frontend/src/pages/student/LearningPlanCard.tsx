@@ -27,7 +27,7 @@ export function LearningPlanCard({ studentId }: { studentId: number }) {
                     </span>
                     <span className="text-xs tabular-nums text-slate-500">{d.approved}/{d.required} · {d.remaining} to go</span>
                   </div>
-                  <ProgressBar percent={d.percent} tone={d.percent < 25 ? 'rose' : d.percent < 50 ? 'amber' : 'brand'} />
+                  <ProgressBar percent={d.percent} tone={d.percent < 25 ? 'rose' : d.percent < 50 ? 'amber' : 'brand'} label={`${DEPARTMENTS[d.department]} quota`} />
                   <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-slate-700">
                     {d.case_types.map((c) => <li key={c}>{c}</li>)}
                   </ul>

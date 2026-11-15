@@ -18,9 +18,9 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null)
 
 export const HOME_BY_ROLE: Record<Role, string> = {
-  student: '/my-cases',
-  faculty: '/approvals',
-  admin: '/admin',
+  student: '/home',
+  faculty: '/home',
+  admin: '/home',
 }
 
 /** Read the `exp` claim (ms epoch) without verifying: the server still verifies every request. */

@@ -107,7 +107,7 @@ export function MyCasesPage() {
                       <span className="block truncate text-xs text-slate-500">{c.diagnosis ?? c.chief_complaint}</span>
                     </span>
                     <span className="flex items-center gap-2">
-                      {c.findings.length > 0 && <span className="text-xs text-slate-400">{c.findings.length} teeth</span>}
+                      {c.findings.length > 0 && <span className="text-xs text-slate-500">{c.findings.length} teeth</span>}
                       <StatusBadge status={c.status} />
                     </span>
                   </button>

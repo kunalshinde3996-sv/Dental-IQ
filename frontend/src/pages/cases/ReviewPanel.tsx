@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useToast } from '../../lib/toast'
 import { casesApi } from '../../api'
 import type { CaseRead } from '../../api/types'
 import { Button, ErrorBanner, Textarea } from '../../components/ui'
@@ -8,6 +9,7 @@ export function ReviewPanel({ caseItem, onDone }: { caseItem: CaseRead; onDone: 
   const [remarks, setRemarks] = useState('')
   const [busy, setBusy] = useState<'approve' | 'reject' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const toast = useToast()
 
   async function review(decision: 'approve' | 'reject') {
     if (decision === 'reject' && !remarks.trim()) {
@@ -17,7 +19,9 @@ export function ReviewPanel({ caseItem, onDone }: { caseItem: CaseRead; onDone: 
     setBusy(decision)
     setError(null)
     try {
-      onDone(await casesApi.review(caseItem.id, decision, remarks.trim()))
+      const updated = await casesApi.review(caseItem.id, decision, remarks.trim())
+      toast.success(decision === 'approve' ? `Case #${caseItem.id} approved` : `Case #${caseItem.id} returned to the student`)
+      onDone(updated)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Review failed')
     } finally {

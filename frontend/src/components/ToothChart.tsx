@@ -3,7 +3,7 @@
 // Layout follows the clinical convention (viewer facing the patient):
 //   permanent  upper right 18..11 | upper left 21..28    primary  55..51 | 61..65
 //              lower right 48..41 | lower left 31..38             85..81 | 71..75
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { ToothCondition, ToothFindingInput } from '../api/types'
 import { SURFACES, TOOTH_CONDITIONS, entries } from '../lib/labels'
 import { Button, Field, Input, Segmented, cx } from './ui'
@@ -123,6 +123,37 @@ export function ToothChart({ findings, onChange, readOnly = false, preferredDent
   }, [preferredDentition])
 
   const { upper, lower } = ARCHES[dentition]
+  // Roving tabindex: the chart is one Tab stop; arrow keys move between teeth.
+  const [focusTooth, setFocusTooth] = useState<number>(upper[0])
+  const buttons = useRef(new Map<number, HTMLButtonElement>())
+  const activeTooth = upper.includes(focusTooth) || lower.includes(focusTooth) ? focusTooth : upper[0]
+
+  function moveFocus(to: number) {
+    setFocusTooth(to)
+    buttons.current.get(to)?.focus()
+  }
+
+  function onToothKey(e: KeyboardEvent<HTMLButtonElement>, fdi: number) {
+    const row = upper.includes(fdi) ? upper : lower
+    const other = row === upper ? lower : upper
+    const i = row.indexOf(fdi)
+    const next: Record<string, number | undefined> = {
+      ArrowRight: row[Math.min(i + 1, row.length - 1)],
+      ArrowLeft: row[Math.max(i - 1, 0)],
+      ArrowUp: row === lower ? other[i] : undefined,
+      ArrowDown: row === upper ? other[i] : undefined,
+      Home: row[0],
+      End: row[row.length - 1],
+    }
+    if (e.key in next) {
+      e.preventDefault()
+      const target = next[e.key]
+      if (target !== undefined) moveFocus(target)
+    } else if (e.key === 'Escape' && selected !== null) {
+      e.preventDefault()
+      setSelected(null)
+    }
+  }
   const half = upper.length / 2
   const byTooth = new Map(findings.map((f) => [f.tooth_number, f]))
   const current = selected !== null ? byTooth.get(selected) : undefined
@@ -153,11 +184,15 @@ export function ToothChart({ findings, onChange, readOnly = false, preferredDent
       ? `${fdi} · ${TOOTH_CONDITIONS[f.condition].label}${f.surfaces ? ` (${f.surfaces})` : ''}${f.treatment ? ` · ${f.treatment}` : ''}`
       : `${fdi} · ${toothName(fdi)}`
     const number = (
-      <span className={cx('text-[10px] font-semibold tabular-nums sm:text-xs', f ? 'text-slate-900' : 'text-slate-400')}>{fdi}</span>
+      <span className={cx('text-[10px] font-semibold tabular-nums sm:text-xs', f ? 'text-slate-900' : 'text-slate-500')}>{fdi}</span>
     )
     return (
       <button
         key={fdi}
+        ref={(el) => { if (el) buttons.current.set(fdi, el); else buttons.current.delete(fdi) }}
+        tabIndex={fdi === activeTooth ? 0 : -1}
+        onKeyDown={(e) => onToothKey(e, fdi)}
+        onFocus={() => setFocusTooth(fdi)}
         type="button"
         title={title}
         aria-label={title}
@@ -196,9 +231,10 @@ export function ToothChart({ findings, onChange, readOnly = false, preferredDent
           </span>
         )}
       </div>
-      <div className="overflow-x-auto pb-2">
+      <p id="tooth-chart-help" className="sr-only">Use arrow keys to move between teeth, Up and Down to switch arch, Enter to edit a tooth, Escape to close the editor.</p>
+      <div className="overflow-x-auto pb-2" role="group" aria-label={`${dentition === 'primary' ? 'Primary' : 'Permanent'} dentition tooth chart`} aria-describedby={readOnly ? undefined : 'tooth-chart-help'}>
         <div className="mx-auto w-max min-w-full">
-          <div className="flex justify-between px-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+          <div className="flex justify-between px-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
             <span>Upper right</span>
             <span>Upper left</span>
           </div>
@@ -211,7 +247,7 @@ export function ToothChart({ findings, onChange, readOnly = false, preferredDent
             <div className="flex items-start gap-0.5 border-r-2 border-dashed border-slate-200 pr-1">{lower.slice(0, half).map((t) => renderTooth(t, 'lower'))}</div>
             <div className="flex items-start gap-0.5 pl-1">{lower.slice(half).map((t) => renderTooth(t, 'lower'))}</div>
           </div>
-          <div className="flex justify-between px-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+          <div className="flex justify-between px-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
             <span>Lower right</span>
             <span>Lower left</span>
           </div>

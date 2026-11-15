@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { HOME_BY_ROLE, useAuth } from '../auth/AuthContext'
-import { Logo } from '../components/AppLayout'
-import { Button, ErrorBanner, Field, Input } from '../components/ui'
+import { Logo } from '../components/Logo'
+import { Button, ErrorBanner, Field, Input, useDocumentTitle } from '../components/ui'
 
 // Demo accounts created by `python -m scripts.seed` (synthetic data only).
 const DEMO_ACCOUNTS = [
@@ -20,6 +20,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  useDocumentTitle('Sign in')
 
   if (me) return <Navigate to={HOME_BY_ROLE[me.user.role]} replace />
 
@@ -89,7 +90,7 @@ export function LoginPage() {
           </form>
 
           <div className="mt-8">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Demo accounts</p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Demo accounts</p>
             <div className="grid grid-cols-2 gap-2">
               {DEMO_ACCOUNTS.map((a) => (
                 <button

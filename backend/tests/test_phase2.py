@@ -408,3 +408,28 @@ def test_fhir_export_is_valid_and_audited(seeded):
     audit = seeded.get("/api/audit", params={"action": "export", "entity_id": pid},
                        headers=auth(seeded, "admin@gdch.demo")).json()
     assert audit["total"] >= 1
+
+
+# --- Phase 3: role overview -------------------------------------------------------------------
+
+def test_overview_numbers_match_detail_pages(seeded):
+    s = auth(seeded, "student@gdch.demo")
+    ov = seeded.get("/api/overview", headers=s).json()
+    me = seeded.get("/api/auth/me", headers=s).json()["student"]["id"]
+    quota = seeded.get(f"/api/students/{me}/quota-progress", headers=s).json()
+    att = seeded.get(f"/api/students/{me}/attendance-summary", headers=s).json()
+    assert ov["role"] == "student"
+    assert ov["student"]["quota_percent"] == quota["overall_percent"]
+    assert ov["student"]["attendance_pct"] == att["percentage"]
+
+    f = auth(seeded, "faculty@gdch.demo")
+    fo = seeded.get("/api/overview", headers=f).json()["faculty"]
+    pending = seeded.get("/api/faculty/me/pending-cases", headers=f).json()["total"]
+    alerts = seeded.get("/api/alerts/students", headers=f).json()
+    assert fo["pending_reviews"] == pending
+    assert fo["at_risk"]["High"] == sum(a["risk_level"] == "High" for a in alerts)
+
+    a = auth(seeded, "admin@gdch.demo")
+    ao = seeded.get("/api/overview", headers=a).json()["admin"]
+    stats = seeded.get("/api/admin/stats", headers=a).json()
+    assert ao["patients"] == stats["patients"] and ao["cases"] == stats["cases_by_status"]

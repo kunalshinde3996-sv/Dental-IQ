@@ -6,6 +6,7 @@ import { FindingsTable, ToothChart } from '../../components/ToothChart'
 import { Button, Card, CardHeader, ErrorBanner, PageHeader, Spinner, StatusBadge } from '../../components/ui'
 import { formatDate } from '../../lib/format'
 import { DEPARTMENTS } from '../../lib/labels'
+import { useToast } from '../../lib/toast'
 import { useApi } from '../../lib/useApi'
 import { ReviewPanel } from './ReviewPanel'
 
@@ -22,6 +23,7 @@ export function CaseDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { me } = useAuth()
+  const toast = useToast()
   const { data: c, error, loading, reload, setData } = useApi(() => casesApi.get(Number(id)), [id])
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -49,6 +51,7 @@ export function CaseDetailPage() {
   return (
     <>
       <PageHeader
+        docTitle={`Case #${c.id}`}
         title={
           <span className="flex flex-wrap items-center gap-3">
             Case #{c.id} <StatusBadge status={c.status} />
@@ -72,6 +75,7 @@ export function CaseDetailPage() {
                 onClick={() =>
                   run(async () => {
                     const updated = await casesApi.submit(c.id)
+                    toast.success('Case submitted for faculty approval')
                     setData(() => updated)
                   })
                 }

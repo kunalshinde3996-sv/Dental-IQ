@@ -80,7 +80,7 @@ export function NotificationBell({ placement = 'up' }: { placement?: 'up' | 'dow
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         {count > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
             {count > 99 ? '99+' : count}
           </span>
         )}
@@ -96,7 +96,7 @@ export function NotificationBell({ placement = 'up' }: { placement?: 'up' | 'dow
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
             <span className="text-sm font-semibold">Notifications</span>
-            <button onClick={markAll} disabled={count === 0} className="text-xs font-medium text-brand-700 hover:underline disabled:text-slate-400 disabled:no-underline dark:text-brand-300">
+            <button onClick={markAll} disabled={count === 0} className="text-xs font-medium text-brand-700 hover:underline disabled:text-slate-500 disabled:no-underline dark:text-brand-300">
               Mark all read
             </button>
           </div>
@@ -110,7 +110,7 @@ export function NotificationBell({ placement = 'up' }: { placement?: 'up' | 'dow
                   <button onClick={() => openItem(n)} className={cx('block w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50', !n.read_at && 'bg-brand-50/60 dark:bg-brand-900/30')}>
                     <div className="flex items-center gap-2">
                       <span className={cx('rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase', style.className)}>{style.label}</span>
-                      <span className="ml-auto text-[11px] text-slate-500 dark:text-slate-400">{timeAgo(n.created_at)}</span>
+                      <span className="ml-auto text-[11px] text-slate-500 dark:text-slate-500">{timeAgo(n.created_at)}</span>
                       {!n.read_at && <span className="h-2 w-2 rounded-full bg-brand-500" aria-label="unread" />}
                     </div>
                     <p className="mt-1 text-sm font-medium">{n.title}</p>

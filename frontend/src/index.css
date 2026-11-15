@@ -6,7 +6,84 @@
   body {
     @apply bg-slate-50 font-sans text-slate-900 antialiased;
   }
+  /* Visible keyboard focus everywhere (mouse clicks don't show it). */
+  :focus-visible {
+    outline: 2px solid #25a5a7;
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
+
+/* ---------------------------------------------------------------------------------------
+ * Dark mode. The app uses a small, consistent set of neutral + status utilities; remapping
+ * them here keeps every page consistent in dark mode without duplicating classes. Colours
+ * that carry meaning (tooth conditions, heat cells, chart series) are handled where drawn.
+ * ------------------------------------------------------------------------------------- */
+.dark body {
+  background-color: #0b1220;
+  color: #e2e8f0;
+}
+.dark .bg-white { background-color: #172033; }
+.dark .bg-slate-50 { background-color: #0b1220; }
+.dark .bg-slate-100 { background-color: #243049; }
+.dark .bg-slate-200 { background-color: #2b3954; }
+.dark .text-slate-900 { color: #f1f5f9; }
+.dark .text-slate-800 { color: #e2e8f0; }
+.dark .text-slate-700 { color: #cbd5e1; }
+.dark .text-slate-600 { color: #aab6c8; }
+.dark .text-slate-500 { color: #94a3b8; }
+.dark .ring-slate-200 { --tw-ring-color: #2b3954; }
+.dark .ring-slate-300 { --tw-ring-color: #3b4a66; }
+.dark .border-slate-100,
+.dark .border-slate-200 { border-color: #2b3954; }
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #243049; }
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover { background-color: #243049; }
+.dark .hover\:bg-brand-50\/40:hover,
+.dark .hover\:bg-brand-50\/50:hover,
+.dark .hover\:bg-brand-50:hover { background-color: #15343a; }
+.dark .bg-brand-50,
+.dark .bg-brand-50\/40,
+.dark .bg-brand-50\/60 { background-color: #12302f; }
+.dark .ring-brand-100,
+.dark .ring-brand-200 { --tw-ring-color: #1f6a71; }
+.dark .text-brand-700 { color: #7bdbd8; }
+.dark .text-brand-800 { color: #b0ebe8; }
+/* Status tints */
+.dark .bg-rose-50 { background-color: rgba(244, 63, 94, 0.14); }
+.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.14); }
+.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.14); }
+.dark .bg-sky-50 { background-color: rgba(14, 165, 233, 0.14); }
+.dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.16); }
+.dark .ring-rose-200 { --tw-ring-color: rgba(244, 63, 94, 0.35); }
+.dark .ring-amber-200 { --tw-ring-color: rgba(245, 158, 11, 0.35); }
+.dark .ring-emerald-200 { --tw-ring-color: rgba(16, 185, 129, 0.35); }
+.dark .ring-sky-200 { --tw-ring-color: rgba(14, 165, 233, 0.35); }
+.dark .ring-indigo-200 { --tw-ring-color: rgba(99, 102, 241, 0.4); }
+.dark .text-rose-600,
+.dark .text-rose-700,
+.dark .text-rose-800 { color: #fda4af; }
+.dark .text-amber-700,
+.dark .text-amber-800,
+.dark .text-amber-900 { color: #fcd34d; }
+.dark .text-emerald-700,
+.dark .text-emerald-800 { color: #6ee7b7; }
+.dark .text-sky-700 { color: #7dd3fc; }
+.dark .text-indigo-700 { color: #a5b4fc; }
+/* Form controls */
+.dark input,
+.dark select,
+.dark textarea { color-scheme: dark; }
+.dark .placeholder\:text-slate-400::placeholder,
+.dark .placeholder\:text-slate-500::placeholder { color: #7c8aa0; }
+.dark .disabled\:bg-slate-50:disabled { background-color: #1b2538; }
 
 @media print {
   @page {

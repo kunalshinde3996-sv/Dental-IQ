@@ -37,7 +37,7 @@ export function QuotaProgressCard({ progress }: { progress: StudentQuotaProgress
                 {d.pending > 0 && <span className="ml-1.5 text-xs text-amber-700">+{d.pending} pending</span>}
               </span>
             </div>
-            <ProgressBar percent={d.percent} tone={tone(d.percent)} />
+            <ProgressBar percent={d.percent} tone={tone(d.percent)} label={`${DEPARTMENTS[d.department]} quota`} />
           </li>
         ))}
       </ul>
