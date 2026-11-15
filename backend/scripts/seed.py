@@ -14,12 +14,16 @@ low or declining marks) so Phase-2 at-risk detection has signal to find.
 from __future__ import annotations
 
 import argparse
+import json
+import math
 import random
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
+from pathlib import Path
 
 from sqlmodel import Session, SQLModel, select
 
+from app.core.config import artifact_dir
 from app.core.security import hash_password
 from app.database import create_db_and_tables, engine
 from app.models import (
@@ -72,24 +76,30 @@ DEMO_ACCOUNTS = {
 class StudentProfile:
     """Hidden 'ground truth' used only to generate data. Not stored in the DB."""
 
-    attendance_rate: float
+    attendance_start: float  # attendance probability at the start of the 3-month window
+    attendance_end: float  # ... and at the end (linear in between -> trend)
     case_weight: float
     marks_mean: float  # fraction of max marks
     marks_trend: float  # change per successive exam (negative = declining)
+    reject_prob: float = 0.06  # chance a reviewed case is rejected
     label: str = "typical"
 
 
 def typical_profile() -> StudentProfile:
+    base = RNG.uniform(0.82, 0.97)
     return StudentProfile(
-        attendance_rate=RNG.uniform(0.82, 0.97),
+        attendance_start=base,
+        attendance_end=min(0.99, base + RNG.uniform(-0.04, 0.04)),
         case_weight=RNG.uniform(0.85, 1.25),
         marks_mean=RNG.uniform(0.60, 0.80),
         marks_trend=RNG.uniform(-0.02, 0.03),
+        reject_prob=RNG.uniform(0.03, 0.09),
     )
 
 
 def low_attendance() -> dict:
-    return {"attendance_rate": RNG.uniform(0.55, 0.68)}
+    # Starts acceptable, then drifts down: overall ~60-70%, last month well below 75%.
+    return {"attendance_start": RNG.uniform(0.82, 0.90), "attendance_end": RNG.uniform(0.40, 0.52)}
 
 
 def low_cases() -> dict:
@@ -97,7 +107,7 @@ def low_cases() -> dict:
 
 
 def weak_marks() -> dict:
-    return {"marks_mean": RNG.uniform(0.40, 0.48), "marks_trend": -0.06}
+    return {"marks_mean": RNG.uniform(0.40, 0.48), "marks_trend": -0.06, "reject_prob": RNG.uniform(0.25, 0.35)}
 
 
 # (year, index within year) -> overrides making that student at-risk
@@ -146,15 +156,19 @@ ANTERIOR = [11, 12, 13, 21, 22, 23, 31, 32, 33, 41, 42, 43]
 POSTERIOR = [14, 15, 16, 17, 24, 25, 26, 27, 34, 35, 36, 37, 44, 45, 46, 47]
 THIRD_MOLARS = [18, 28, 38, 48]
 CHILD_TEETH = [11, 21, 16, 26, 36, 46, 12, 22]  # permanent teeth erupted in mixed dentition
+# Primary (deciduous) teeth, FDI quadrants 5-8: mostly molars for caries in young children.
+PRIMARY_TEETH = [54, 55, 64, 65, 74, 75, 84, 85, 51, 61]
 
 
-def pick_teeth(complaint: str, diagnosis: str, n: int, child: bool) -> list[int]:
+def pick_teeth(complaint: str, diagnosis: str, n: int, age: int) -> list[int]:
     text = f"{complaint} {diagnosis}".lower()
     if "third molar" in text:
         pool = THIRD_MOLARS
+    elif age <= 9 and "11" not in text:
+        pool = PRIMARY_TEETH
     elif "front" in text or "class iii" in text or ", 11" in text or "of 11" in text:
         pool = ANTERIOR
-    elif child:
+    elif age <= 14:
         pool = CHILD_TEETH
     else:
         pool = POSTERIOR + ANTERIOR[:4]
@@ -208,7 +222,7 @@ def create_users(session: Session) -> tuple[list[Student], dict[int, StudentProf
             if (year, idx) == (StudentYear.bds4, 0):
                 email, pwd = DEMO_ACCOUNTS["student"]
                 pw_hash = hash_password(pwd)
-                profile = StudentProfile(0.93, 1.3, 0.76, 0.02, "demo: strong student")
+                profile = StudentProfile(0.92, 0.94, 1.3, 0.76, 0.02, 0.04, "demo: strong student")
             elif (year, idx) == (StudentYear.bds3, 0):
                 email, pwd = DEMO_ACCOUNTS["atrisk"]
                 pw_hash = hash_password(pwd)
@@ -233,6 +247,24 @@ def create_quotas(session: Session) -> None:
     for year, per_dept in D.QUOTAS.items():
         for dept, required in per_dept.items():
             session.add(ClinicalQuota(department=dept, year=year, required_cases=required))
+
+
+def latent_pmd(patient: Patient) -> bool:
+    """Hidden generative model for potentially malignant disorders (OSMF, leukoplakia, ...).
+
+    A known logistic form makes the Phase-2 risk model's recovered coefficients checkable.
+    Not an epidemiological model.
+    """
+    if patient.age < 18:
+        return False
+    logit = -3.4
+    logit += {HabitStatus.current: 2.0, HabitStatus.former: 1.0}.get(patient.smokeless_tobacco, 0.0)
+    logit += {HabitStatus.current: 1.0, HabitStatus.former: 0.4}.get(patient.tobacco_smoking, 0.0)
+    logit += 0.5 if patient.alcohol == HabitStatus.current else 0.0
+    logit += 0.03 * (patient.age - 40)
+    logit += 0.4 if patient.taluka in D.RURAL_TALUKAS else 0.0
+    logit += 0.03 * min(patient.habit_duration_years or 0, 30)
+    return RNG.random() < 1 / (1 + math.exp(-logit))
 
 
 def make_patient(i: int) -> Patient:
@@ -293,28 +325,38 @@ def choose_department(patient: Patient, first_visit: bool) -> Department:
     return weighted_choice(weights)
 
 
-def choose_template(dept: Department, patient: Patient) -> D.CaseTemplate:
+def pmd_template(patient: Patient) -> D.CaseTemplate:
+    """OSMF / leukoplakia / suspicious ulcer; OSMF dominates in smokeless-tobacco (areca) users."""
+    osmf, leuko, ulcer = D.TOBACCO_LESION_TEMPLATE_INDEXES
+    if patient.smokeless_tobacco != HabitStatus.never:
+        idx = RNG.choices([osmf, leuko, ulcer], weights=[60, 34, 6])[0]
+    else:
+        idx = RNG.choices([osmf, leuko, ulcer], weights=[15, 75, 10])[0]
+    return D.TEMPLATES[Department.oral_medicine][idx]
+
+
+def choose_template(dept: Department, patient: Patient, has_pmd: bool) -> D.CaseTemplate:
     templates = D.TEMPLATES[dept]
     if dept == Department.oral_medicine:
-        user = HabitStatus.current in (patient.smokeless_tobacco, patient.tobacco_smoking)
-        lesion_idx = D.TOBACCO_LESION_TEMPLATE_INDEXES
-        if user and RNG.random() < 0.45:
-            # Suspicious ulcer is rare even among tobacco users
-            idx = RNG.choices(lesion_idx, weights=[5, 4, 1], k=1)[0]
-            return templates[idx]
-        others = [t for i, t in enumerate(templates) if i not in lesion_idx]
+        if has_pmd and RNG.random() < 0.5:
+            return pmd_template(patient)  # follow-up review of the lesion
+        others = [t for i, t in enumerate(templates) if i not in D.TOBACCO_LESION_TEMPLATE_INDEXES]
         return RNG.choice(others)
+    if dept == Department.oral_surgery and has_pmd and RNG.random() < 0.5:
+        return templates[3]  # incisional biopsy of the oral lesion
     if dept == Department.prosthodontics and patient.age < 50:
         return RNG.choice([t for t in templates if "edentulous maxilla" not in t[1]])
     return RNG.choice(templates)
 
 
-def case_status(visit: date) -> tuple[CaseStatus, str | None]:
+def case_status(visit: date, reject_prob: float) -> tuple[CaseStatus, str | None]:
     age_days = (TODAY - visit).days
     if age_days <= 10:
         status = RNG.choices([CaseStatus.draft, CaseStatus.submitted, CaseStatus.approved], weights=[20, 60, 20])[0]
+    elif RNG.random() < 0.05:
+        status = CaseStatus.submitted  # still waiting for review
     else:
-        status = RNG.choices([CaseStatus.approved, CaseStatus.rejected, CaseStatus.submitted], weights=[88, 7, 5])[0]
+        status = CaseStatus.rejected if RNG.random() < reject_prob else CaseStatus.approved
     if status == CaseStatus.rejected:
         return status, RNG.choice(D.REJECTION_REMARKS)
     if status == CaseStatus.approved:
@@ -329,8 +371,11 @@ def create_patients_and_cases(session: Session, students: list[Student], profile
     student_weights = [profiles[s.id].case_weight * year_factor[s.year] for s in clinical]
 
     n_cases = 0
+    n_pmd = 0
     for i in range(1, N_PATIENTS + 1):
         patient = make_patient(i)
+        has_pmd = latent_pmd(patient)
+        n_pmd += has_pmd
         n_visits = RNG.choices(range(1, 8), weights=[10, 15, 20, 20, 15, 12, 8])[0]
         first = TODAY - timedelta(days=RNG.randint(5, CASE_HISTORY_DAYS))
         visit_dates = sorted(
@@ -342,10 +387,15 @@ def create_patients_and_cases(session: Session, students: list[Student], profile
         session.flush()
 
         for v, visit in enumerate(visit_dates):
-            dept = choose_department(patient, first_visit=v == 0)
-            complaint, diagnosis, procedure, finding_specs, (lo, hi) = choose_template(dept, patient)
+            if v == 0 and has_pmd:
+                # PMD patients are always screened and diagnosed in Oral Medicine at their first visit.
+                dept, template = Department.oral_medicine, pmd_template(patient)
+            else:
+                dept = choose_department(patient, first_visit=v == 0)
+                template = choose_template(dept, patient, has_pmd)
+            complaint, diagnosis, procedure, finding_specs, (lo, hi) = template
             student = RNG.choices(clinical, weights=student_weights)[0]
-            status, remarks = case_status(visit)
+            status, remarks = case_status(visit, profiles[student.id].reject_prob)
             created = as_dt(visit, 10)
             case = Case(
                 patient_id=patient.id,
@@ -365,13 +415,13 @@ def create_patients_and_cases(session: Session, students: list[Student], profile
             )
             if finding_specs and hi > 0:
                 condition, surfaces, treatment = finding_specs[0]
-                for tooth in pick_teeth(complaint, diagnosis, RNG.randint(lo, hi), patient.age <= 14):
+                for tooth in pick_teeth(complaint, diagnosis, RNG.randint(lo, hi), patient.age):
                     case.findings.append(
                         ToothFinding(tooth_number=tooth, condition=condition, surfaces=surfaces, treatment=treatment)
                     )
             session.add(case)
             n_cases += 1
-    return N_PATIENTS, n_cases
+    return N_PATIENTS, n_cases, n_pmd
 
 
 def create_attendance(session: Session, students: list[Student], profiles: dict[int, StudentProfile]) -> int:
@@ -379,14 +429,15 @@ def create_attendance(session: Session, students: list[Student], profiles: dict[
     days = [TODAY - timedelta(days=d) for d in range(ATTENDANCE_DAYS, 0, -1)]
     days = [d for d in days if d.weekday() != 6]  # Monday-Saturday timetable
     for st in students:
-        rate = profiles[st.id].attendance_rate
+        p = profiles[st.id]
         if st.year == StudentYear.intern:
             sessions = [AttendanceSession.clinic]
         elif st.year in CLINICAL_YEARS:
             sessions = [AttendanceSession.theory, AttendanceSession.clinic]
         else:
             sessions = [AttendanceSession.theory, AttendanceSession.practical]
-        for d in days:
+        for k, d in enumerate(days):
+            rate = p.attendance_start + (p.attendance_end - p.attendance_start) * k / (len(days) - 1)
             for sess in sessions:
                 if RNG.random() < rate:
                     status = AttendanceStatus.late if RNG.random() < 0.05 else AttendanceStatus.present
@@ -418,12 +469,31 @@ def create_assessments(session: Session, students: list[Student], profiles: dict
 
 # --------------------------------------------------------------------------- main
 
-def seed(reset: bool) -> None:
+def write_ground_truth(session: Session, students: list[Student], profiles: dict[int, StudentProfile]) -> Path:
+    """Persist the designed at-risk labels OUTSIDE the database, for offline ML evaluation only."""
+    rows = [
+        {"roll_no": st.roll_no, "year": st.year.value, "at_risk": profiles[st.id].label not in NOT_AT_RISK,
+         "design": profiles[st.id].label}
+        for st in students
+    ]
+    path = artifact_dir() / "seed_ground_truth.json"
+    path.write_text(json.dumps({"generated": TODAY.isoformat(), "students": rows}, indent=2), encoding="utf-8")
+    return path
+
+
+NOT_AT_RISK = ("typical", "demo: strong student")
+
+
+def seed(reset: bool, train: bool = True, verbose: bool = True) -> None:
+    say = print if verbose else (lambda *_a, **_k: None)
     if reset:
         import app.models  # noqa: F401  (register tables before drop)
 
         SQLModel.metadata.drop_all(engine)
+        with engine.begin() as conn:  # alembic bookkeeping table, if migrations were used
+            conn.exec_driver_sql("DROP TABLE IF EXISTS alembic_version")
     create_db_and_tables()
+    stamp_alembic_head()
 
     with Session(engine) as session:
         if session.exec(select(User).limit(1)).first():
@@ -431,26 +501,51 @@ def seed(reset: bool) -> None:
 
         students, profiles, faculty_by_dept = create_users(session)
         create_quotas(session)
-        n_patients, n_cases = create_patients_and_cases(session, students, profiles, faculty_by_dept)
+        n_patients, n_cases, n_pmd = create_patients_and_cases(session, students, profiles, faculty_by_dept)
         n_att = create_attendance(session, students, profiles)
         n_marks = create_assessments(session, students, profiles)
         session.commit()
+        gt_path = write_ground_truth(session, students, profiles)
 
-        print("Seeded SYNTHETIC demo data:")
-        print(f"  students={len(students)}  faculty={sum(len(v) for v in faculty_by_dept.values())}  "
-              f"patients={n_patients}  cases={n_cases}  attendance={n_att}  assessments={n_marks}")
-        print("  Designed at-risk students (ground truth for Phase-2 validation):")
+        say("Seeded SYNTHETIC demo data:")
+        say(f"  students={len(students)}  faculty={sum(len(v) for v in faculty_by_dept.values())}  "
+            f"patients={n_patients} (latent PMD={n_pmd})  cases={n_cases}  attendance={n_att}  assessments={n_marks}")
+        say(f"  Designed at-risk students (ground truth written to {gt_path}):")
         for st in students:
-            if profiles[st.id].label not in ("typical", "demo: strong student"):
+            if profiles[st.id].label not in NOT_AT_RISK:
                 user = session.get(User, st.user_id)
-                print(f"    {st.roll_no:<12} {st.year.value:<7} {user.name:<24} {profiles[st.id].label}")
-        print("  Demo logins:")
+                say(f"    {st.roll_no:<12} {st.year.value:<7} {user.name:<24} {profiles[st.id].label}")
+        say("  Demo logins:")
         for role, (email, pwd) in DEMO_ACCOUNTS.items():
-            print(f"    {role:<8} {email:<28} {pwd}")
-        print(f"  All other generated accounts use password: {DEFAULT_PASSWORD}")
+            say(f"    {role:<8} {email:<28} {pwd}")
+        say(f"  All other generated accounts use password: {DEFAULT_PASSWORD}")
+
+    if train:
+        try:
+            from ml.train import train_all
+        except ImportError:  # ML layer not installed
+            return
+        train_all(write_report=False, verbose=verbose)
+
+
+def stamp_alembic_head() -> None:
+    """Tables were created directly from the models, so mark the DB as up to date for Alembic."""
+    try:
+        from alembic import command
+        from alembic.config import Config
+    except ImportError:  # pragma: no cover - alembic is in requirements
+        return
+    root = Path(__file__).resolve().parents[1]
+    if not (root / "migrations").is_dir():
+        return
+    cfg = Config(str(root / "alembic.ini"))
+    cfg.set_main_option("script_location", str(root / "migrations"))
+    command.stamp(cfg, "head")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed Dental-IQ with synthetic demo data")
     parser.add_argument("--reset", action="store_true", help="drop and recreate all tables first")
-    seed(parser.parse_args().reset)
+    parser.add_argument("--no-train", action="store_true", help="skip training the ML models afterwards")
+    args = parser.parse_args()
+    seed(args.reset, train=not args.no_train)

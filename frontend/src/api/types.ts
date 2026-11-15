@@ -220,3 +220,81 @@ export interface AdminStats {
   cases: number
   cases_by_status: Record<CaseStatus, number>
 }
+
+// ---------------------------------------------------------------- Phase 2: analytics
+
+export interface PopulationQuery {
+  date_from?: string
+  date_to?: string
+  taluka?: Taluka | ''
+  department?: Department | ''
+}
+
+export interface TalukaBurden {
+  taluka: Taluka
+  patients: number
+  cases: number
+  counts: Record<string, number>
+  prevalence_pct: Record<string, number>
+}
+
+export interface HabitAssociation {
+  habit: string
+  habit_label: string
+  outcome: string
+  outcome_label: string
+  exposed_n: number
+  exposed_cases: number
+  exposed_pct: number
+  unexposed_n: number
+  unexposed_cases: number
+  unexposed_pct: number
+  prevalence_ratio: number | null
+  ci_low: number | null
+  ci_high: number | null
+}
+
+export interface SexCell {
+  patients: number
+  caries: number
+  pct: number
+}
+
+export interface CariesAgeSex {
+  age_group: string
+  male: SexCell
+  female: SexCell
+}
+
+export interface TermCount {
+  term: string
+  count: number
+  pct: number
+}
+
+export interface Insight {
+  id: string
+  tone: 'critical' | 'warning' | 'info'
+  title: string
+  text: string
+  action: string
+  evidence: Record<string, unknown>
+}
+
+export interface PopulationReport {
+  summary: {
+    patients: number
+    cases: number
+    pmd_patients: number
+    caries_patients: number
+    abha_linked_pct: number
+    adult_current_tobacco_pct: number
+  }
+  taluka_burden: TalukaBurden[]
+  habit_associations: HabitAssociation[]
+  caries_by_age_sex: CariesAgeSex[]
+  monthly_trend: ({ month: string; total: number } & Partial<Record<Department, number>>)[]
+  top_terms: { diagnoses: TermCount[]; procedures: TermCount[] }
+  insights: Insight[]
+  condition_labels: Record<string, string>
+}

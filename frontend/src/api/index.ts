@@ -15,6 +15,8 @@ import type {
   PatientInput,
   PatientListItem,
   PatientRead,
+  PopulationQuery,
+  PopulationReport,
   StudentQuotaProgress,
   StudentRead,
   StudentYear,
@@ -68,4 +70,8 @@ export const academicApi = {
 
 export const adminApi = {
   stats: () => request<AdminStats>('GET', '/admin/stats'),
+}
+
+export const analyticsApi = {
+  population: (query: PopulationQuery) => request<PopulationReport>('GET', '/analytics/population', { query: { ...query } }),
 }

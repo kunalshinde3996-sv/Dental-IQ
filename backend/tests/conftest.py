@@ -6,6 +6,7 @@ import tempfile
 _tmpdir = tempfile.mkdtemp(prefix="dentaliq-test-")
 os.environ["DATABASE_URL"] = f"sqlite:///{os.path.join(_tmpdir, 'test.db')}"
 os.environ["JWT_SECRET"] = "test-secret"
+os.environ["ML_ARTIFACT_DIR"] = os.path.join(_tmpdir, "artifacts")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

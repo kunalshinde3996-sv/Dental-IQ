@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, HOME_BY_ROLE, useAuth } from './auth/AuthContext'
 import { RequireAuth } from './auth/RequireAuth'
 import { AppLayout } from './components/AppLayout'
+import { PopulationInsightsPage } from './pages/analytics/PopulationInsightsPage'
 import { AdminFacultyPage, AdminOverviewPage, AdminStudentsPage } from './pages/admin/AdminPages'
 import { CaseDetailPage } from './pages/cases/CaseDetailPage'
 import { CaseFormPage } from './pages/cases/CaseFormPage'
@@ -50,6 +51,9 @@ export default function App() {
 
             {/* Faculty */}
             <Route path="approvals" element={<RequireAuth roles={['faculty']}><ApprovalsPage /></RequireAuth>} />
+
+            {/* Faculty + admin: Phase-2 intelligence */}
+            <Route path="insights" element={<RequireAuth roles={['faculty', 'admin']}><PopulationInsightsPage /></RequireAuth>} />
 
             {/* Admin */}
             <Route path="admin" element={<RequireAuth roles={['admin']}><AdminOverviewPage /></RequireAuth>} />
