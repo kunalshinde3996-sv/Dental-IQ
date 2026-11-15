@@ -34,7 +34,28 @@ VERSION = "1.0.0"
 async def lifespan(_app: FastAPI):
     if settings.create_tables_on_startup:  # never in production: Alembic owns the schema there
         create_db_and_tables()
+    if settings.should_seed_demo:
+        seed_demo_if_empty()
     yield
+
+
+def seed_demo_if_empty() -> None:
+    """Load the README's demo accounts into an empty database so a fresh deploy is usable."""
+    from sqlmodel import Session, select
+
+    from app.database import engine
+    from app.models import User
+
+    try:
+        with Session(engine) as session:
+            if session.exec(select(User).limit(1)).first():
+                return
+        from scripts.seed import seed
+
+        logger.warning("Database has no users: seeding synthetic demo data (SEED_DEMO_IF_EMPTY).")
+        seed(reset=False, train=True, verbose=True)
+    except Exception:  # a failed seed must not stop the API from starting
+        logger.exception("Demo seed on startup failed")
 
 
 app = FastAPI(

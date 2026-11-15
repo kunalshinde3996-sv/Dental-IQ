@@ -5,6 +5,7 @@ missing secret is replaced by a random per-process value (tokens then reset on r
 production a missing or weak secret stops the app from starting.
 """
 import logging
+import os
 import secrets
 from functools import lru_cache
 from pathlib import Path
@@ -33,6 +34,9 @@ class Settings(BaseSettings):
     # Dev convenience: create missing tables at start-up. Ignored (always off) in production,
     # where the schema is managed by `alembic upgrade head`.
     auto_create_tables: bool = True
+    # Seed synthetic demo data at startup when the users table is empty (never wipes data).
+    # Unset => on only for non-production deploys on Render, whose free-tier disk starts empty.
+    seed_demo_if_empty: bool | None = None
 
     jwt_secret: str | None = None
     jwt_algorithm: str = "HS256"
@@ -57,6 +61,12 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def should_seed_demo(self) -> bool:
+        if self.seed_demo_if_empty is not None:
+            return self.seed_demo_if_empty
+        return bool(os.getenv("RENDER")) and not self.is_production
 
     @property
     def create_tables_on_startup(self) -> bool:
