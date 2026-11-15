@@ -324,25 +324,28 @@ def key_insights(ds: PopulationDataset, today: date | None = None) -> list[dict]
         if n >= MIN_GROUP:
             caries_rows.append((row["age_group"], pct(k, n), n))
     overall_caries = pct(sum("caries" in p.categories for p in ds.patients.values()), len(ds.patients))
-    if caries_rows and max(r[1] for r in caries_rows) - overall_caries < 5:
-        insights.append({
-            "id": "caries-age", "tone": "info",
-            "title": f"Caries is widespread across age groups ({overall_caries}%)",
-            "text": (f"{overall_caries}% of {len(ds.patients)} patients have dental caries, with every age group "
-                     f"within 5 points of that figure."),
-            "action": "Population-wide prevention: fluoride, diet counselling and recall at every visit.",
-            "evidence": {"overall_pct": overall_caries, "by_age": caries_rows},
-        })
-    elif caries_rows:
-        band, value, n = max(caries_rows, key=lambda t: t[1])
-        insights.append({
-            "id": "caries-age", "tone": "info",
-            "title": f"Caries peaks in the {band} age group",
-            "text": f"{value}% of {n} patients aged {band} have dental caries, the highest of any age group.",
-            "action": ("School-based sealant and fluoride programmes." if band in ("5-12", "13-17")
-                       else "Reinforce preventive counselling and recall for this age group."),
-            "evidence": {"age_group": band, "pct": value, "patients": n},
-        })
+    if caries_rows:
+        low = min(caries_rows, key=lambda t: t[1])
+        high = max(caries_rows, key=lambda t: t[1])
+        if high[1] - low[1] < 5:
+            insights.append({
+                "id": "caries-age", "tone": "info",
+                "title": f"Caries is widespread across age groups ({overall_caries}%)",
+                "text": (f"{overall_caries}% of {len(ds.patients)} patients have dental caries; every age group with "
+                         f"at least {MIN_GROUP} patients lies between {low[1]}% and {high[1]}%."),
+                "action": "Population-wide prevention: fluoride, diet counselling and recall at every visit.",
+                "evidence": {"overall_pct": overall_caries, "by_age": caries_rows},
+            })
+        else:
+            insights.append({
+                "id": "caries-age", "tone": "info",
+                "title": f"Caries burden is highest at {high[0]} years",
+                "text": (f"Caries ranges from {low[1]}% of patients aged {low[0]} (n={low[2]}) to {high[1]}% of those "
+                         f"aged {high[0]} (n={high[2]}); {overall_caries}% overall."),
+                "action": ("School-based sealant and fluoride programmes." if high[0] in ("5-12", "13-17")
+                           else "Prioritise restorative capacity and preventive recall for this age group."),
+                "evidence": {"lowest": low, "highest": high, "overall_pct": overall_caries, "by_age": caries_rows},
+            })
 
     # 5. Department demand shift: last 30 days vs the 30 before.
     recent_start, prior_start = today - timedelta(days=30), today - timedelta(days=60)

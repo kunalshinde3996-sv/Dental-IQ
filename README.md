@@ -99,7 +99,7 @@ Switching to PostgreSQL: `pip install psycopg2-binary`, set
 
 | Area | Where | What |
 |---|---|---|
-| **Population Insights** | Faculty/Admin → Population Insights | Disease burden by taluka (bar + heat table), habits vs OSMF / leukoplakia / lesions with **prevalence ratios + 95% CI**, caries by age & sex, monthly cases per department, top diagnoses & procedures. Filters: date range, taluka, department. **Key-insight cards are generated from the queried data** (e.g. *"Adults who use or used gutkha / smokeless tobacco show 7.8x higher prevalence of OSMF..."*), ranked by the CI lower bound with minimum group sizes |
+| **Population Insights** | Faculty/Admin → Population Insights | Disease burden by taluka (bar + heat table), habits vs OSMF / leukoplakia / lesions with **prevalence ratios + 95% CI**, caries by age & sex, monthly cases per department, top diagnoses & procedures. Filters: date range, taluka, department. **Key-insight cards are generated from the queried data** (e.g. *"Adults who use or used gutkha / smokeless tobacco show 37.7x higher prevalence of OSMF ... 95% CI 9.0-157"*; wide intervals are shown, not hidden), ranked by the CI lower bound with minimum group sizes |
 | **Oral cancer risk screening** | Patient profile; New Case form | Logistic regression on age, sex, smokeless tobacco, smoking, alcohol, habit duration, rural-belt taluka and observed lesion → Low/Medium/High, probability, **top factors with odds multipliers**, suggested action (biopsy referral, cessation counselling, recall). Updates live when a lesion is charted. A recorded PMD diagnosis sets the final level to High (the model's own level stays visible) |
 | **At-risk student alerts** | Faculty/Admin → At-Risk Students | Signals: 12-week attendance + 4-week trend, marks average + trend, quota pace vs cohort median, rejection rate. **Rules give reasons + actions**, a logistic-regression score ranks and adds per-signal contributions. Sortable table, detail drawer with weekly attendance chart |
 | **Focus areas** | Student → My Cases | Same signals in gentle, actionable wording ("Attending your next 18 sessions will take you past 75%") |
@@ -121,7 +121,9 @@ Switching to PostgreSQL: `pip install psycopg2-binary`, set
 - 400 patients across Goa's 12 talukas (weighted towards Bambolim's neighbours). A **hidden logistic model** assigns
   potentially malignant disorders from smokeless tobacco, smoking, alcohol, age, habit duration and rural taluka, so the
   analytics and the risk model have a known ground truth to recover. Young children get **primary-tooth** findings.
-- 60 students, 10 faculty, ~1,430 supervised cases, 12 weeks of attendance, internal/sessional/practical marks.
+- 60 students, 10 faculty, ~1,400 supervised cases (follow-ups within ~3 months of the first visit), 12 weeks of attendance, internal/sessional/practical marks.
+- **Caries** is also a hidden per-patient condition whose probability rises with age: about **50% of children and 66% of adults**
+  in the current seed (it was ~80% at every age before Phase 3).
 - **10 deliberately at-risk students**: declining attendance, low case count, weak/declining marks, high rejection rate.
   Their labels are written to `ml/artifacts/seed_ground_truth.json` (never to the DB) for offline evaluation only.
 - Distributions are plausible but hand-tuned. **They are not epidemiological estimates.**
@@ -130,8 +132,8 @@ Switching to PostgreSQL: `pip install psycopg2-binary`, set
 
 | Model | Metric |
 |---|---|
-| Oral-cancer / PMD risk | 5-fold CV ROC AUC **0.86** (0.70 without the lesion feature); High threshold P/R 0.65 / 0.47 |
-| At-risk students (hybrid) | vs 10 designed at-risk students: **High alerts P/R 1.00 / 1.00**; watch list (High + Medium) P/R 0.62 / 1.00 |
+| Oral-cancer / PMD risk | 5-fold CV ROC AUC **0.92** (0.80 without the lesion feature); High threshold P/R 0.63 / 0.46 |
+| At-risk students (hybrid) | vs 10 designed at-risk students: **High alerts P/R 1.00 / 1.00**; watch list (High + Medium) P/R 0.77 / 1.00 |
 
 These describe recovery of the generator's assumptions on synthetic data, **not** clinical or academic validity.
 

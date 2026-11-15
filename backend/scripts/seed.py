@@ -25,6 +25,7 @@ from sqlmodel import Session, SQLModel, select
 
 from app.core.config import artifact_dir
 from app.core.security import hash_password
+from app.services.clinical_terms import categorize
 from app.database import create_db_and_tables, engine
 from app.models import (
     Assessment,
@@ -60,6 +61,7 @@ N_PATIENTS = 400
 STUDENTS_PER_YEAR = 12
 ATTENDANCE_DAYS = 91
 CASE_HISTORY_DAYS = 180
+FOLLOW_UP_DAYS = 90
 DEFAULT_PASSWORD = "Password@123"
 
 DEMO_ACCOUNTS = {
@@ -341,18 +343,63 @@ def pmd_template(patient: Patient) -> D.CaseTemplate:
     return D.TEMPLATES[Department.oral_medicine][idx]
 
 
-def choose_template(dept: Department, patient: Patient, has_pmd: bool) -> D.CaseTemplate:
+def latent_caries(patient: Patient) -> bool:
+    """Hidden per-patient caries status; prevalence rises with age (see seed_data)."""
+    p = next(prob for max_age, prob in D.CARIES_PREVALENCE_BY_AGE if patient.age <= max_age)
+    return RNG.random() < p
+
+
+def implies_caries(template: D.CaseTemplate) -> bool:
+    """Same definition the analytics use, so seed and dashboard agree on what 'caries' means."""
+    return "caries" in categorize(template[1], [f[0] for f in template[3]])
+
+
+def choose_template(dept: Department, patient: Patient, has_pmd: bool, has_caries: bool) -> D.CaseTemplate | None:
+    """Pick a template consistent with the patient's hidden conditions; None if the department has none."""
     templates = D.TEMPLATES[dept]
     if dept == Department.oral_medicine:
         if has_pmd and RNG.random() < 0.5:
             return pmd_template(patient)  # follow-up review of the lesion
-        others = [t for i, t in enumerate(templates) if i not in D.TOBACCO_LESION_TEMPLATE_INDEXES]
-        return RNG.choice(others)
-    if dept == Department.oral_surgery and has_pmd and RNG.random() < 0.5:
+        templates = [t for i, t in enumerate(templates) if i not in D.TOBACCO_LESION_TEMPLATE_INDEXES]
+    elif dept == Department.oral_surgery and has_pmd and RNG.random() < 0.5:
         return templates[3]  # incisional biopsy of the oral lesion
-    if dept == Department.prosthodontics and patient.age < 50:
-        return RNG.choice([t for t in templates if "edentulous maxilla" not in t[1]])
-    return RNG.choice(templates)
+    elif dept == Department.prosthodontics and patient.age < 50:
+        templates = [t for t in templates if "edentulous maxilla" not in t[1]]
+    if not has_caries:
+        templates = [t for t in templates if not implies_caries(t)]
+    return RNG.choice(templates) if templates else None
+
+
+def caries_template(patient: Patient) -> tuple[Department, D.CaseTemplate]:
+    dept = Department.pedodontics if patient.age <= 14 else Department.conservative
+    return dept, RNG.choice([t for t in D.TEMPLATES[dept] if implies_caries(t)])
+
+
+def plan_visits(patient: Patient, visit_dates: list[date], has_pmd: bool, has_caries: bool):
+    """Department + template per visit, consistent with the patient's hidden PMD / caries status."""
+    plan = []
+    for v, visit in enumerate(visit_dates):
+        if v == 0 and has_pmd:
+            # PMD patients are always screened and diagnosed in Oral Medicine at their first visit.
+            plan.append((visit, Department.oral_medicine, pmd_template(patient)))
+            continue
+        for _ in range(10):
+            dept = choose_department(patient, first_visit=v == 0)
+            template = choose_template(dept, patient, has_pmd, has_caries)
+            if template is not None:
+                break
+        else:  # departments that only treat caries (e.g. Conservative) for a caries-free patient
+            dept = Department.oral_medicine
+            template = choose_template(dept, patient, False, False)
+        plan.append((visit, dept, template))
+    if has_caries and not any(implies_caries(t) for _, _, t in plan):
+        # Make sure the caries is actually recorded: the last non-PMD-diagnosis visit treats it.
+        idx = len(plan) - 1 if not (has_pmd and len(plan) == 1) else None
+        if idx is not None and not (has_pmd and idx == 0):
+            plan[idx] = (plan[idx][0], *caries_template(patient))
+        else:
+            plan.append((visit_dates[-1], *caries_template(patient)))
+    return plan
 
 
 def case_status(visit: date, reject_prob: float) -> tuple[CaseStatus, str | None]:
@@ -382,23 +429,20 @@ def create_patients_and_cases(session: Session, students: list[Student], profile
         patient = make_patient(i)
         has_pmd = latent_pmd(patient)
         n_pmd += has_pmd
-        n_visits = RNG.choices(range(1, 8), weights=[10, 15, 20, 20, 15, 12, 8])[0]
+        n_visits = RNG.choices(range(1, 9), weights=[8, 12, 17, 19, 16, 13, 9, 6])[0]
         first = TODAY - timedelta(days=RNG.randint(5, CASE_HISTORY_DAYS))
-        visit_dates = sorted(
-            min(TODAY, first + timedelta(days=RNG.randint(0, (TODAY - first).days))) for _ in range(n_visits - 1)
-        )
+        # Follow-ups fall within ~3 months of the first visit (a course of treatment), so case volume
+        # is spread evenly over time instead of piling up in recent weeks.
+        # Follow-ups that would fall after today are future appointments: not generated.
+        follow_ups = (first + timedelta(days=RNG.randint(3, FOLLOW_UP_DAYS)) for _ in range(n_visits - 1))
+        visit_dates = sorted(d for d in follow_ups if d <= TODAY)
         visit_dates = [first, *visit_dates]
         patient.created_at = as_dt(first, 9)
         session.add(patient)
         session.flush()
 
-        for v, visit in enumerate(visit_dates):
-            if v == 0 and has_pmd:
-                # PMD patients are always screened and diagnosed in Oral Medicine at their first visit.
-                dept, template = Department.oral_medicine, pmd_template(patient)
-            else:
-                dept = choose_department(patient, first_visit=v == 0)
-                template = choose_template(dept, patient, has_pmd)
+        has_caries = latent_caries(patient)
+        for visit, dept, template in plan_visits(patient, visit_dates, has_pmd, has_caries):
             complaint, diagnosis, procedure, finding_specs, (lo, hi) = template
             student = RNG.choices(clinical, weights=student_weights)[0]
             status, remarks = case_status(visit, profiles[student.id].reject_prob)

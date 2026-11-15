@@ -65,6 +65,21 @@ def test_population_report_is_internally_consistent(seeded):
     assert rep["insights"] and all(i["text"] and i["evidence"] for i in rep["insights"])
 
 
+def test_seeded_caries_is_plausible_and_rises_with_age(seeded):
+    """Guard against the Phase-2 artefact where ~80% of every age group had caries."""
+    rows = seeded.get("/api/analytics/caries", headers=auth(seeded, "admin@gdch.demo")).json()
+
+    def share(groups):
+        n = sum(r["male"]["patients"] + r["female"]["patients"] for r in rows if r["age_group"] in groups)
+        k = sum(r["male"]["caries"] + r["female"]["caries"] for r in rows if r["age_group"] in groups)
+        return k / n * 100
+
+    children, adults = share({"5-12", "13-17"}), share({"18-34", "35-49", "50-64", "65+"})
+    assert 35 <= children <= 65, children
+    assert 55 <= adults <= 75, adults
+    assert adults > children
+
+
 def test_population_filters_match_unfiltered_rows(seeded):
     h = auth(seeded, "faculty@gdch.demo")
     full = seeded.get("/api/analytics/population", headers=h).json()

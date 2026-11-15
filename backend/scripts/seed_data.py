@@ -109,6 +109,8 @@ TEMPLATES: dict[Department, list[CaseTemplate]] = {
          [(ToothCondition.lesion, None, "Urgent biopsy referral")], (1, 1)),
         ("Swelling of gums and bad breath", "Chronic generalised periodontitis",
          "Examination, OPG advised; referred to Periodontics", [(ToothCondition.mobility, None, None)], (1, 3)),
+        ("Routine dental check-up", "Plaque-induced gingivitis; dentition otherwise sound",
+         "Comprehensive oral examination; oral hygiene instructions", [], (0, 0)),
     ],
     Department.conservative: [
         ("Food lodgement in back tooth", "Dentinal caries", "Class I composite restoration",
@@ -157,12 +159,14 @@ TEMPLATES: dict[Department, list[CaseTemplate]] = {
     Department.pedodontics: [
         ("Child has pain in back tooth", "Early childhood caries", "Pulpotomy and stainless-steel crown",
          [(ToothCondition.caries, "O", "Pulpotomy + SS crown")], (1, 3)),
-        ("Routine check-up for child", "Pit and fissure caries risk", "Pit and fissure sealant application",
+        ("Routine check-up for child", "Deep pits and fissures, sealant indicated", "Pit and fissure sealant application",
          [(ToothCondition.sound, "O", "Sealant")], (2, 4)),
         ("Child fell and broke front tooth", "Ellis Class II fracture of 11", "Composite build-up",
          [(ToothCondition.fractured, "I", "Composite build-up")], (1, 1)),
         ("Decayed milk teeth", "Multiple carious primary teeth", "Restorations and fluoride varnish",
          [(ToothCondition.filled, "O", "GIC restoration")], (2, 4)),
+        ("Routine check-up for child", "Healthy dentition", "Oral hygiene instruction and fluoride varnish",
+         [(ToothCondition.sound, None, "Fluoride varnish")], (2, 4)),
     ],
     Department.orthodontics: [
         ("Irregular front teeth", "Angle's Class I malocclusion with anterior crowding",
@@ -171,6 +175,12 @@ TEMPLATES: dict[Department, list[CaseTemplate]] = {
          "Records, cephalometric analysis; treatment planning", [], (0, 0)),
     ],
 }
+
+#: Probability that a patient has dental caries, by age (upper bound inclusive). Hand-tuned to
+#: plausible Indian levels: about half of children, rising to roughly two-thirds of older adults.
+CARIES_PREVALENCE_BY_AGE: list[tuple[int, float]] = [
+    (12, 0.50), (17, 0.56), (34, 0.68), (49, 0.70), (64, 0.73), (200, 0.75),
+]
 
 #: Templates used for patients with current tobacco/gutkha habits (oral-medicine screening).
 TOBACCO_LESION_TEMPLATE_INDEXES = (2, 3, 4)

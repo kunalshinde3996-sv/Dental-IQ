@@ -20,7 +20,7 @@ malignancy)?
 |---|---|
 | Model | L2 logistic regression (`C=1.0`), scikit-learn |
 | Unit / population | adult patients (18+) with ≥1 submitted/approved case |
-| Training rows | 298 (PMD-positive: 36, 12.1%) |
+| Training rows | 310 (PMD-positive: 41, 13.2%) |
 | Label | any PMD diagnosis, same keyword definition as the analytics (`services/clinical_terms.py`) |
 | Features | age (decades above 40), male, current/former smokeless tobacco (gutkha/khaini/mishri), current/former smoking, current alcohol, habit duration, rural-belt taluka (taluka-derived), lesion observed |
 | Risk levels | Low < 0.15 ≤ Medium < 0.40 ≤ High |
@@ -30,8 +30,8 @@ malignancy)?
 
 | Model | ROC AUC | Precision / recall @ Medium+ | Precision / recall @ High |
 |---|---|---|---|
-| Full model | **0.858** | 0.47 / 0.78 (flagged 60, TP 28) | 0.65 / 0.47 (flagged 26, TP 17) |
-| Ablation: without *lesion observed* | 0.699 | 0.24 / 0.47 (flagged 70, TP 17) | 0.31 / 0.11 (flagged 13, TP 4) |
+| Full model | **0.922** | 0.44 / 0.85 (flagged 79, TP 35) | 0.63 / 0.46 (flagged 30, TP 19) |
+| Ablation: without *lesion observed* | 0.803 | 0.35 / 0.66 (flagged 76, TP 27) | 0.54 / 0.37 (flagged 28, TP 15) |
 
 The *lesion observed* feature is partly label-adjacent: leukoplakia cases record a lesion finding
 in the same visit. The ablation row shows the signal that comes from **habits and demographics alone**,
@@ -43,19 +43,17 @@ Reference patient: 40-year-old woman, never used tobacco/alcohol, urban taluka, 
 
 | Feature | Coefficient | Odds × |
 |---|---|---|
-| (intercept) | -3.66 | — |
-| age_decades | +0.44 | 1.55× |
-| male | +0.34 | 1.41× |
-| smokeless_current | +1.24 | 3.45× |
-| smokeless_former | +0.88 | 2.41× |
-| smoking_current | +0.24 | 1.27× |
-| smoking_former | +0.37 | 1.44× |
-| alcohol_current | -0.43 | 0.65× |
-| habit_decades | +0.11 | 1.11× |
-| rural_taluka | +0.26 | 1.29× |
-| lesion_observed | +2.67 | 14.40× |
-
-> **Caution:** `alcohol_current` came out negative. The generator gives every habit a *positive* effect; with only 36 positive patients these smaller effects are not recoverable, so this must **not** be read as protective. It is a reason to collect more data, not a finding.
+| (intercept) | -3.99 | — |
+| age_decades | +0.33 | 1.40× |
+| male | -0.22 | 0.80× |
+| smokeless_current | +2.19 | 8.93× |
+| smokeless_former | +1.32 | 3.74× |
+| smoking_current | +0.77 | 2.16× |
+| smoking_former | +0.52 | 1.69× |
+| alcohol_current | +0.08 | 1.09× |
+| habit_decades | +0.16 | 1.17× |
+| rural_taluka | +0.72 | 2.06× |
+| lesion_observed | +2.57 | 13.08× |
 
 ### Explainability
 The model is linear in log-odds, so every prediction is decomposed **exactly** into per-factor
@@ -87,14 +85,14 @@ It is **never stored in the database and never used for training**.
 
 | Detector | Precision | Recall | F1 | Flagged | True positives |
 |---|---|---|---|---|---|
-| Rules only (any flag) | 0.67 | 1.00 | 0.80 | 15 | 10 |
-| Model only (score ≥ 0.5) | 0.91 | 1.00 | 0.95 | 11 | 10 |
+| Rules only (any flag) | 0.77 | 1.00 | 0.87 | 13 | 10 |
+| Model only (score ≥ 0.5) | 1.00 | 1.00 | 1.00 | 10 | 10 |
 | **Hybrid: High alerts** | 1.00 | 1.00 | 1.00 | 10 | 10 |
-| Hybrid: High + Medium (watch list) | 0.62 | 1.00 | 0.77 | 16 | 10 |
+| Hybrid: High + Medium (watch list) | 0.77 | 1.00 | 0.87 | 13 | 10 |
 
 - Ground-truth at-risk students: 10 of 60.
 - Missed by the hybrid (High + Medium): none
-- On the watch list but not designed at-risk: GDC2023047, GDC2022057, GDC2023042, GDC2025021, GDC2022050, GDC2026005. These are typical students whose random
+- On the watch list but not designed at-risk: GDC2024030, GDC2024031, GDC2024034. These are typical students whose random
   draws crossed a *warning* threshold (e.g. quota pace 70–80% of cohort median); they are shown
   as **Medium**, not High.
 
@@ -102,12 +100,12 @@ It is **never stored in the database and never used for training**.
 
 | Feature | Coefficient |
 |---|---|
-| attendance_pct | -1.08 |
-| attendance_trend | -0.74 |
-| marks_avg | -0.72 |
-| marks_trend | -0.70 |
-| pace_ratio | -1.30 |
-| rejection_rate | +0.40 |
+| attendance_pct | -0.76 |
+| attendance_trend | -0.73 |
+| marks_avg | -0.60 |
+| marks_trend | -0.81 |
+| pace_ratio | -1.48 |
+| rejection_rate | +0.50 |
 
 
 ## Limitations
