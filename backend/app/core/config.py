@@ -44,7 +44,9 @@ class Settings(BaseSettings):
     # Use X-Forwarded-For for the client IP (only behind a trusted reverse proxy).
     trust_proxy_headers: bool = False
 
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # The deployed Vercel frontend is included so the hosted demo works without extra config;
+    # setting CORS_ORIGINS replaces this whole list.
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,https://dental-iq-navy.vercel.app"
     # Where trained ML models and the seed's ground-truth file are written.
     ml_artifact_dir: str = str(Path(__file__).resolve().parents[2] / "ml" / "artifacts")
 

@@ -1,6 +1,12 @@
 // Minimal fetch wrapper: base URL, bearer token, JSON, and normalised errors.
 
-const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
+// Every backend route lives under /api, so accept VITE_API_URL with or without that suffix
+// (e.g. "https://dental-iq.onrender.com" or "https://dental-iq.onrender.com/api").
+function resolveBaseUrl(raw: string | undefined): string {
+  const base = (raw || '/api').trim().replace(/\/+$/, '')
+  return base.endsWith('/api') ? base : `${base}/api`
+}
+const BASE_URL = resolveBaseUrl(import.meta.env.VITE_API_URL as string | undefined)
 const TOKEN_KEY = 'dentaliq.token'
 // Generous enough to ride out a free-tier host cold start (first request after idle can take ~60s).
 const REQUEST_TIMEOUT_MS = 90_000
