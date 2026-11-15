@@ -1,0 +1,222 @@
+// TypeScript mirrors of the backend Pydantic schemas (backend/app/schemas).
+
+export type Role = 'admin' | 'faculty' | 'student'
+export type StudentYear = 'bds1' | 'bds2' | 'bds3' | 'bds4' | 'intern'
+export type Department =
+  | 'oral_medicine'
+  | 'conservative'
+  | 'endodontics'
+  | 'periodontics'
+  | 'prosthodontics'
+  | 'oral_surgery'
+  | 'pedodontics'
+  | 'orthodontics'
+export type Sex = 'male' | 'female' | 'other'
+export type Taluka =
+  | 'pernem' | 'bardez' | 'tiswadi' | 'bicholim' | 'sattari' | 'ponda'
+  | 'mormugao' | 'salcete' | 'quepem' | 'sanguem' | 'canacona' | 'dharbandora'
+export type HabitStatus = 'never' | 'former' | 'current'
+export type CaseStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
+export type ToothCondition =
+  | 'sound' | 'caries' | 'missing' | 'filled' | 'rct' | 'crown'
+  | 'mobility' | 'lesion' | 'fractured' | 'impacted' | 'extraction_indicated'
+export type ExamType = 'internal' | 'sessional' | 'practical' | 'viva' | 'university'
+
+export interface Page<T> {
+  items: T[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface UserRead {
+  id: number
+  name: string
+  email: string
+  role: Role
+}
+
+export interface StudentRead {
+  id: number
+  user_id: number
+  name: string
+  email: string
+  roll_no: string
+  year: StudentYear
+  batch: string
+}
+
+export interface FacultyRead {
+  id: number
+  user_id: number
+  name: string
+  email: string
+  department: Department
+  designation: string
+}
+
+export interface MeResponse {
+  user: UserRead
+  student: StudentRead | null
+  faculty: FacultyRead | null
+}
+
+export interface TokenResponse extends MeResponse {
+  access_token: string
+  token_type: string
+}
+
+export interface PatientInput {
+  abha_id?: string | null
+  name: string
+  age: number
+  sex: Sex
+  taluka: Taluka
+  phone?: string | null
+  tobacco_smoking: HabitStatus
+  smokeless_tobacco: HabitStatus
+  alcohol: HabitStatus
+  habit_duration_years?: number | null
+  has_diabetes: boolean
+  has_hypertension: boolean
+  has_cardiac_disease: boolean
+  allergies?: string | null
+  medical_history_notes?: string | null
+}
+
+export interface PatientRead extends PatientInput {
+  id: number
+  opd_number: string
+  is_synthetic: boolean
+  created_at: string
+}
+
+export interface PatientListItem {
+  id: number
+  opd_number: string
+  abha_id: string | null
+  name: string
+  age: number
+  sex: Sex
+  taluka: Taluka
+  phone: string | null
+  tobacco_smoking: HabitStatus
+  smokeless_tobacco: HabitStatus
+  alcohol: HabitStatus
+  last_visit: string | null
+  visit_count: number
+}
+
+export interface VisitSummary {
+  id: number
+  visit_date: string
+  department: Department
+  chief_complaint: string
+  diagnosis: string | null
+  procedure: string | null
+  status: CaseStatus
+  student_name: string
+  faculty_name: string
+  findings_count: number
+}
+
+export interface PatientDetail extends PatientRead {
+  visits: VisitSummary[]
+}
+
+export interface ToothFindingInput {
+  tooth_number: number
+  condition: ToothCondition
+  surfaces?: string | null
+  treatment?: string | null
+  notes?: string | null
+}
+
+export interface ToothFindingRead extends ToothFindingInput {
+  id: number
+  case_id: number
+}
+
+export interface CaseInput {
+  patient_id: number
+  faculty_id: number
+  department: Department
+  visit_date: string
+  chief_complaint: string
+  diagnosis?: string | null
+  procedure?: string | null
+  findings: ToothFindingInput[]
+}
+
+export interface CaseRead {
+  id: number
+  patient_id: number
+  patient_name: string
+  patient_opd_number: string
+  student_id: number
+  student_name: string
+  student_roll_no: string
+  faculty_id: number
+  faculty_name: string
+  department: Department
+  visit_date: string
+  chief_complaint: string
+  diagnosis: string | null
+  procedure: string | null
+  status: CaseStatus
+  faculty_remarks: string | null
+  submitted_at: string | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at: string
+  findings: ToothFindingRead[]
+}
+
+export interface QuotaProgress {
+  department: Department
+  required: number
+  approved: number
+  pending: number
+  remaining: number
+  percent: number
+}
+
+export interface StudentQuotaProgress {
+  student_id: number
+  year: StudentYear
+  is_clinical: boolean
+  departments: QuotaProgress[]
+  total_required: number
+  total_approved: number
+  overall_percent: number
+}
+
+export interface AttendanceSummary {
+  student_id: number
+  total_sessions: number
+  present: number
+  late: number
+  absent: number
+  excused: number
+  percentage: number
+  by_session: Record<string, number>
+}
+
+export interface AssessmentRead {
+  id: number
+  student_id: number
+  subject: string
+  exam_type: ExamType
+  marks: number
+  max_marks: number
+  exam_date: string | null
+  percentage: number
+}
+
+export interface AdminStats {
+  students: number
+  faculty: number
+  patients: number
+  cases: number
+  cases_by_status: Record<CaseStatus, number>
+}
