@@ -1,7 +1,7 @@
 """Clinical cases: create (student), edit/submit (owner), review (supervising faculty)."""
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, status
 from sqlalchemy import func
 from sqlmodel import select
 
@@ -11,6 +11,7 @@ from app.models._base import utcnow
 from app.models.enums import CaseStatus, Department, Role
 from app.schemas.cases import CaseCreate, CaseRead, CaseReview, CaseUpdate, ToothFindingIn, ToothFindingRead
 from app.schemas.common import Page
+from app.services import audit, notifications
 from app.services.cases import (
     case_query,
     ensure_can_view,
@@ -83,7 +84,8 @@ def list_cases(
 
 @router.post("", response_model=CaseRead, status_code=status.HTTP_201_CREATED,
              summary="Create a case (student). One entry feeds patient EHR + competency log")
-def create_case(body: CaseCreate, session: SessionDep, student: CurrentStudent):
+def create_case(body: CaseCreate, session: SessionDep, student: CurrentStudent, user: CurrentUser,
+                request: Request):
     if session.get(Patient, body.patient_id) is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Patient not found")
     validate_supervisor(session, body.faculty_id, body.department)
@@ -95,19 +97,24 @@ def create_case(body: CaseCreate, session: SessionDep, student: CurrentStudent):
         case.status = CaseStatus.submitted
         case.submitted_at = utcnow()
     session.add(case)
+    session.flush()
+    audit.record(session, user, "create", "case", case.id,
+                 f"Created {case.department.value} case for patient #{case.patient_id} ({case.status.value})", request)
     session.commit()
     return load_case_read(session, case.id)
 
 
 @router.get("/{case_id}", response_model=CaseRead, summary="Get one case with tooth findings")
-def get_case(case_id: int, session: SessionDep, user: CurrentUser):
+def get_case(case_id: int, session: SessionDep, user: CurrentUser, request: Request):
     case = get_case_or_404(session, case_id)
     ensure_can_view(session, user, case)
+    audit.record_view(session, user, "case", case.id, f"Viewed case #{case.id} (patient #{case.patient_id})", request)
     return load_case_read(session, case_id)
 
 
 @router.patch("/{case_id}", response_model=CaseRead, summary="Edit a draft/rejected case (owner only)")
-def update_case(case_id: int, body: CaseUpdate, session: SessionDep, student: CurrentStudent):
+def update_case(case_id: int, body: CaseUpdate, session: SessionDep, student: CurrentStudent, user: CurrentUser,
+                request: Request):
     case = get_case_or_404(session, case_id)
     ensure_owner_can_edit(student, case)
     changes = body.model_dump(exclude_unset=True, exclude={"findings"})
@@ -122,25 +129,29 @@ def update_case(case_id: int, body: CaseUpdate, session: SessionDep, student: Cu
         _replace_findings(case, body.findings)
     case.updated_at = utcnow()
     session.add(case)
+    fields = ", ".join(sorted(body.model_dump(exclude_unset=True))) or "no fields"
+    audit.record(session, user, "update", "case", case.id, f"Edited case #{case.id}: {fields}", request)
     session.commit()
     return load_case_read(session, case.id)
 
 
 @router.post("/{case_id}/submit", response_model=CaseRead, summary="Submit a draft/rejected case for approval")
-def submit_case(case_id: int, session: SessionDep, student: CurrentStudent):
+def submit_case(case_id: int, session: SessionDep, student: CurrentStudent, user: CurrentUser, request: Request):
     case = get_case_or_404(session, case_id)
     ensure_owner_can_edit(student, case)
     _require_complete_for_submit(case)
     case.status = CaseStatus.submitted
     case.submitted_at = case.updated_at = utcnow()
     session.add(case)
+    audit.record(session, user, "submit", "case", case.id, f"Submitted case #{case.id} for approval", request)
     session.commit()
     return load_case_read(session, case.id)
 
 
 @router.post("/{case_id}/review", response_model=CaseRead,
              summary="Approve or reject a submitted case (supervising faculty)")
-def review_case(case_id: int, body: CaseReview, session: SessionDep, faculty: CurrentFaculty):
+def review_case(case_id: int, body: CaseReview, session: SessionDep, faculty: CurrentFaculty, user: CurrentUser,
+                request: Request, background: BackgroundTasks):
     case = get_case_or_404(session, case_id)
     if case.faculty_id != faculty.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the supervising faculty can review this case")
@@ -150,16 +161,23 @@ def review_case(case_id: int, body: CaseReview, session: SessionDep, faculty: Cu
     case.faculty_remarks = (body.remarks or "").strip() or None
     case.reviewed_at = case.updated_at = utcnow()
     session.add(case)
+    verb = "Approved" if body.decision == "approve" else "Rejected"
+    remarks = f": {case.faculty_remarks}" if case.faculty_remarks else ""
+    audit.record(session, user, body.decision, "case", case.id, f"{verb} case #{case.id}{remarks}", request)
+    notifications.case_reviewed(session, case)
     session.commit()
+    background.add_task(notifications.refresh_at_risk_alerts_background)  # rejection rate may have changed
     return load_case_read(session, case.id)
 
 
 @router.delete("/{case_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a draft case (owner only)")
-def delete_case(case_id: int, session: SessionDep, student: CurrentStudent) -> None:
+def delete_case(case_id: int, session: SessionDep, student: CurrentStudent, user: CurrentUser,
+                request: Request) -> None:
     case = get_case_or_404(session, case_id)
     ensure_owner_can_edit(student, case)
     if case.status != CaseStatus.draft:
         raise HTTPException(status.HTTP_409_CONFLICT, "Only draft cases can be deleted")
+    audit.record(session, user, "delete", "case", case.id, f"Deleted draft case #{case.id}", request)
     session.delete(case)
     session.commit()
 

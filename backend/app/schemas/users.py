@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import Department, Role, StudentYear
@@ -45,3 +47,4 @@ class MeResponse(BaseModel):
 class TokenResponse(MeResponse):
     access_token: str
     token_type: str = "bearer"
+    expires_at: datetime

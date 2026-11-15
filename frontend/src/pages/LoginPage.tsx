@@ -6,14 +6,14 @@ import { Button, ErrorBanner, Field, Input } from '../components/ui'
 
 // Demo accounts created by `python -m scripts.seed` (synthetic data only).
 const DEMO_ACCOUNTS = [
-  { label: 'Student', email: 'student@gdch.demo', password: 'Student@123' },
-  { label: 'At-risk student', email: 'atrisk.student@gdch.demo', password: 'Student@123' },
-  { label: 'Faculty', email: 'faculty@gdch.demo', password: 'Faculty@123' },
-  { label: 'Admin', email: 'admin@gdch.demo', password: 'Admin@123' },
+  { label: 'Student', email: 'student@gdch.demo', password: 'Molar#2026' },
+  { label: 'At-risk student', email: 'atrisk.student@gdch.demo', password: 'Molar#2026' },
+  { label: 'Faculty', email: 'faculty@gdch.demo', password: 'Clinic#2026' },
+  { label: 'Admin', email: 'admin@gdch.demo', password: 'Office#2026' },
 ]
 
 export function LoginPage() {
-  const { me, login } = useAuth()
+  const { me, login, endReason } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -71,6 +71,11 @@ export function LoginPage() {
           <p className="mt-1 text-sm text-slate-500">Use your college account.</p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            {endReason === 'expired' && !error && (
+              <p role="status" className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+                Your session expired. Please sign in again.
+              </p>
+            )}
             {error && <ErrorBanner message={error} />}
             <Field label="Email">
               <Input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@gdch.demo" />

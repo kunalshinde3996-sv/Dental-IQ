@@ -1,12 +1,13 @@
 """Attendance, assessments (marks) and clinical quota configuration."""
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, status
 from sqlmodel import col, select
 
 from app.core.deps import AdminUser, CurrentUser, SessionDep, StaffUser, get_student_profile
 from app.models import Assessment, Attendance, ClinicalQuota, Student
 from app.models.enums import AttendanceSession, ExamType, Role, StudentYear
+from app.services import audit, notifications
 from app.schemas.academic import (
     AssessmentBulkCreate,
     AssessmentCreate,
@@ -56,7 +57,8 @@ def list_attendance(
 
 @router.post("/attendance/bulk", response_model=list[AttendanceRead], status_code=status.HTTP_201_CREATED,
              summary="Mark attendance for a session (faculty/admin). Upserts existing records")
-def mark_attendance(body: AttendanceBulkCreate, session: SessionDep, _staff: StaffUser):
+def mark_attendance(body: AttendanceBulkCreate, session: SessionDep, staff: StaffUser, request: Request,
+                    background: BackgroundTasks):
     ids = [e.student_id for e in body.entries]
     found = set(session.exec(select(Student.id).where(col(Student.id).in_(ids))).all())
     unknown = sorted(set(ids) - found)
@@ -79,7 +81,10 @@ def mark_attendance(body: AttendanceBulkCreate, session: SessionDep, _staff: Sta
         record.status = entry.status
         session.add(record)
         records.append(record)
+    audit.record(session, staff, "update", "attendance", None,
+                 f"Marked {body.session.value} attendance for {len(records)} students on {body.date}", request)
     session.commit()
+    background.add_task(notifications.refresh_at_risk_alerts_background)
     for r in records:
         session.refresh(r)
     return records
@@ -117,11 +122,13 @@ def list_assessments(
 
 @router.post("/assessments", response_model=AssessmentRead, status_code=status.HTTP_201_CREATED,
              summary="Record marks (faculty/admin)")
-def create_assessment(body: AssessmentCreate, session: SessionDep, _staff: StaffUser):
+def create_assessment(body: AssessmentCreate, session: SessionDep, staff: StaffUser, request: Request):
     if session.get(Student, body.student_id) is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Student not found")
     assessment = Assessment(**body.model_dump())
     session.add(assessment)
+    audit.record(session, staff, "create", "assessment", body.student_id,
+                 f"Recorded {body.subject} {body.exam_type.value} marks", request)
     session.commit()
     session.refresh(assessment)
     return _assessment_read(assessment)
@@ -138,7 +145,8 @@ def assessment_subjects(session: SessionDep, _staff: StaffUser, year: StudentYea
 
 @router.post("/assessments/bulk", response_model=list[AssessmentRead], status_code=status.HTTP_201_CREATED,
              summary="Record one exam's marks for many students (faculty/admin). Upserts on student+subject+type+date")
-def bulk_assessments(body: AssessmentBulkCreate, session: SessionDep, _staff: StaffUser):
+def bulk_assessments(body: AssessmentBulkCreate, session: SessionDep, staff: StaffUser, request: Request,
+                     background: BackgroundTasks):
     ids = [e.student_id for e in body.entries]
     found = set(session.exec(select(Student.id).where(col(Student.id).in_(ids))).all())
     unknown = sorted(set(ids) - found)
@@ -158,7 +166,10 @@ def bulk_assessments(body: AssessmentBulkCreate, session: SessionDep, _staff: St
         a.marks, a.max_marks = e.marks, body.max_marks
         session.add(a)
         saved.append(a)
+    audit.record(session, staff, "update", "assessment", None,
+                 f"Entered {body.subject} {body.exam_type.value} marks for {len(saved)} students", request)
     session.commit()
+    background.add_task(notifications.refresh_at_risk_alerts_background)
     for a in saved:
         session.refresh(a)
     return [_assessment_read(a) for a in saved]

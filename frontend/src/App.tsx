@@ -5,6 +5,8 @@ import { AppLayout } from './components/AppLayout'
 import { AllocatePatientPage } from './pages/allocation/AllocatePatientPage'
 import { DepartmentLoadPage } from './pages/allocation/DepartmentLoadPage'
 import { PopulationInsightsPage } from './pages/analytics/PopulationInsightsPage'
+import { AccountPage } from './pages/AccountPage'
+import { AuditLogPage } from './pages/admin/AuditLogPage'
 import { AdminFacultyPage, AdminOverviewPage, AdminStudentsPage } from './pages/admin/AdminPages'
 import { CaseDetailPage } from './pages/cases/CaseDetailPage'
 import { CaseFormPage } from './pages/cases/CaseFormPage'
@@ -69,6 +71,8 @@ export default function App() {
             <Route path="admin" element={<RequireAuth roles={['admin']}><AdminOverviewPage /></RequireAuth>} />
             <Route path="admin/students" element={<RequireAuth roles={['admin']}><AdminStudentsPage /></RequireAuth>} />
             <Route path="admin/faculty" element={<RequireAuth roles={['admin']}><AdminFacultyPage /></RequireAuth>} />
+            <Route path="audit" element={<RequireAuth roles={['admin']}><AuditLogPage /></RequireAuth>} />
+            <Route path="account" element={<AccountPage />} />
 
             <Route path="*" element={<NotFound />} />
           </Route>

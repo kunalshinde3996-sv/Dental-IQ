@@ -8,7 +8,7 @@ from datetime import date, datetime
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models._base import utcnow
+from app.models._base import UTCDateTime, utcnow
 from app.models.enums import CaseStatus, Department, ToothCondition
 
 
@@ -26,11 +26,11 @@ class Case(SQLModel, table=True):
 
     status: CaseStatus = Field(default=CaseStatus.draft, index=True)
     faculty_remarks: str | None = Field(default=None, max_length=1000)
-    submitted_at: datetime | None = None
-    reviewed_at: datetime | None = None
+    submitted_at: datetime | None = Field(default=None, sa_type=UTCDateTime)
+    reviewed_at: datetime | None = Field(default=None, sa_type=UTCDateTime)
 
-    created_at: datetime = Field(default_factory=utcnow)
-    updated_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=UTCDateTime)
+    updated_at: datetime = Field(default_factory=utcnow, sa_type=UTCDateTime)
 
     findings: list["ToothFinding"] = Relationship(
         back_populates="case",

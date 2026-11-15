@@ -64,6 +64,7 @@ export interface MeResponse {
 export interface TokenResponse extends MeResponse {
   access_token: string
   token_type: string
+  expires_at: string
 }
 
 export interface PatientInput {
@@ -475,4 +476,29 @@ export interface AttendanceRead {
   date: string
   session: AttendanceSessionType
   status: AttendanceStatus
+}
+
+// ---------------------------------------------------------------- Phase 3: trust & notifications
+
+export interface AuditEvent {
+  id: number
+  created_at: string
+  user_id: number | null
+  user_name: string | null
+  user_role: Role | null
+  action: string
+  entity_type: string
+  entity_id: number | null
+  summary: string
+  ip_address: string | null
+}
+
+export interface AppNotification {
+  id: number
+  kind: 'case_approved' | 'case_rejected' | 'patient_allocated' | 'at_risk_alert' | string
+  title: string
+  body: string
+  link: string | null
+  created_at: string
+  read_at: string | null
 }

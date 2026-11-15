@@ -67,12 +67,12 @@ The login page has one-click buttons for these.
 
 | Role | Email | Password | What to try |
 |---|---|---|---|
-| Student (strong, BDS IV) | `student@gdch.demo` | `Student@123` | My Cases: quota bars, Focus areas, Learning plan → New Case (risk panel updates when you chart a lesion; Pedodontics opens the primary-teeth chart) |
-| Student (at-risk, BDS III) | `atrisk.student@gdch.demo` | `Student@123` | Gentle focus areas (attendance, quota, weak subject) and learning plan |
-| Faculty (HOD Oral Medicine) | `faculty@gdch.demo` | `Faculty@123` | At-Risk Students (sort + drawer), Allocate Patient, Department Load, Population Insights, Mark Attendance, Marks Entry, Pending Approvals |
-| Admin | `admin@gdch.demo` | `Admin@123` | Everything faculty can see + student/faculty lists |
+| Student (strong, BDS IV) | `student@gdch.demo` | `Molar#2026` | My Cases: quota bars, Focus areas, Learning plan → New Case (risk panel updates when you chart a lesion; Pedodontics opens the primary-teeth chart) |
+| Student (at-risk, BDS III) | `atrisk.student@gdch.demo` | `Molar#2026` | Gentle focus areas (attendance, quota, weak subject) and learning plan |
+| Faculty (HOD Oral Medicine) | `faculty@gdch.demo` | `Clinic#2026` | At-Risk Students (sort + drawer), Allocate Patient, Department Load, Population Insights, Mark Attendance, Marks Entry, Pending Approvals |
+| Admin | `admin@gdch.demo` | `Office#2026` | Everything faculty can see + student/faculty lists |
 
-All other generated accounts use `Password@123`.
+All other generated accounts use `Dental#2026`.
 
 ### Tests
 

@@ -1,4 +1,5 @@
 """Password hashing (bcrypt) and JWT creation/verification."""
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -27,10 +28,12 @@ def create_access_token(user_id: int, role: str) -> str:
         "role": role,
         "iat": now,
         "exp": now + timedelta(minutes=settings.jwt_expire_minutes),
+        "jti": uuid.uuid4().hex,  # lets logout revoke this specific token
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def decode_access_token(token: str) -> dict:
-    """Return the token payload. Raises ``jwt.PyJWTError`` if invalid or expired."""
-    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    """Return the token payload. Raises ``jwt.PyJWTError`` if invalid, expired or missing claims."""
+    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm],
+                      options={"require": ["exp", "sub", "jti"]})

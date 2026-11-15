@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlmodel import Field, SQLModel
 
-from app.models._base import utcnow
+from app.models._base import UTCDateTime, utcnow
 from app.models.enums import HabitStatus, Sex, Taluka
 
 
@@ -35,4 +35,4 @@ class Patient(SQLModel, table=True):
     medical_history_notes: str | None = Field(default=None, max_length=2000)
 
     is_synthetic: bool = Field(default=False, description="True for generated demo data")
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=UTCDateTime)

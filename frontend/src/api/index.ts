@@ -25,6 +25,8 @@ import type {
   AttendanceSessionType,
   AttendanceStatus,
   ExamType,
+  AuditEvent,
+  AppNotification,
   AllocationRecommendation,
   ResourceView,
   StudentQuotaProgress,
@@ -38,6 +40,9 @@ export const authApi = {
   login: (email: string, password: string) =>
     request<TokenResponse>('POST', '/auth/login', { body: { email, password } }),
   me: () => request<MeResponse>('GET', '/auth/me'),
+  logout: () => request<void>('POST', '/auth/logout'),
+  changePassword: (current_password: string, new_password: string) =>
+    request<void>('POST', '/auth/change-password', { body: { current_password, new_password } }),
 }
 
 export const patientsApi = {
@@ -117,4 +122,17 @@ export const marksApi = {
     request<AssessmentRead[]>('GET', '/assessments', { query: { ...query, limit: 5000 } }),
   bulk: (body: { subject: string; exam_type: ExamType; max_marks: number; exam_date: string; entries: { student_id: number; marks: number }[] }) =>
     request<AssessmentRead[]>('POST', '/assessments/bulk', { body }),
+}
+
+export const auditApi = {
+  list: (query: { action?: string; entity_type?: string; entity_id?: number | ''; q?: string; date_from?: string; date_to?: string; limit?: number; offset?: number }) =>
+    request<Page<AuditEvent>>('GET', '/audit', { query }),
+  facets: () => request<{ actions: string[]; entity_types: string[] }>('GET', '/audit/facets'),
+}
+
+export const notificationsApi = {
+  list: (unreadOnly = false) => request<AppNotification[]>('GET', '/notifications', { query: { unread_only: unreadOnly, limit: 30 } }),
+  unreadCount: () => request<{ unread: number }>('GET', '/notifications/unread-count'),
+  markRead: (id: number) => request<AppNotification>('POST', `/notifications/${id}/read`),
+  markAllRead: () => request<{ unread: number }>('POST', '/notifications/read-all'),
 }

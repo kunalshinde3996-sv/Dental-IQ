@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 from app.core.security import decode_access_token
 from app.database import get_session
-from app.models import Faculty, Student, User
+from app.models import Faculty, RevokedToken, Student, User
 from app.models.enums import Role
 
 # tokenUrl powers the "Authorize" button in Swagger (/docs).
@@ -24,12 +24,23 @@ _credentials_error = HTTPException(
 )
 
 
-def get_current_user(session: SessionDep, token: Annotated[str, Depends(oauth2_scheme)]) -> User:
+def get_token_payload(token: Annotated[str, Depends(oauth2_scheme)]) -> dict:
     try:
-        payload = decode_access_token(token)
-        user_id = int(payload["sub"])
-    except (jwt.PyJWTError, KeyError, ValueError):
+        return decode_access_token(token)
+    except jwt.PyJWTError:
         raise _credentials_error from None
+
+
+TokenPayload = Annotated[dict, Depends(get_token_payload)]
+
+
+def get_current_user(session: SessionDep, payload: TokenPayload) -> User:
+    try:
+        user_id = int(payload["sub"])
+    except (KeyError, ValueError):
+        raise _credentials_error from None
+    if session.get(RevokedToken, payload["jti"]) is not None:  # logged out
+        raise _credentials_error
     user = session.get(User, user_id)
     if user is None or not user.is_active:
         raise _credentials_error

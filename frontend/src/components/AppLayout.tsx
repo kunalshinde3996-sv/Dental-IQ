@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import type { Role } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { initials } from '../lib/format'
 import { ROLES, YEARS } from '../lib/labels'
+import { NotificationBell } from './NotificationBell'
 import { cx } from './ui'
 
 interface NavItem {
@@ -25,6 +26,7 @@ const ICONS = {
   pencil: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z',
   route: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
   load: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4',
+  shield: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
   chart: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
 }
 
@@ -55,6 +57,7 @@ const NAV: Record<Role, NavItem[]> = {
     { to: '/attendance', label: 'Mark Attendance', icon: ICONS.calendar },
     { to: '/marks', label: 'Marks Entry', icon: ICONS.pencil },
     { to: '/patients', label: 'Patients', icon: ICONS.patients },
+    { to: '/audit', label: 'Audit Log', icon: ICONS.shield },
   ],
 }
 
@@ -115,10 +118,11 @@ export function AppLayout() {
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-500 text-sm font-semibold text-white">
         {initials(me.user.name)}
       </div>
-      <div className="min-w-0 flex-1">
+      <Link to="/account" onClick={() => setMenuOpen(false)} className="min-w-0 flex-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white" title="Account settings">
         <p className="truncate text-sm font-medium text-white">{me.user.name}</p>
         <p className="truncate text-xs text-brand-200">{subtitle}</p>
-      </div>
+      </Link>
+      <NotificationBell placement="up" />
       <button onClick={logout} className="rounded-md p-1.5 text-brand-200 hover:bg-brand-700 hover:text-white" title="Log out" aria-label="Log out">
         <Icon d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
       </button>
@@ -128,23 +132,22 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col justify-between bg-brand-900 p-4 text-white lg:flex">
-        <div>
-          <Logo className="mb-8 px-2 pt-1" />
-          {nav}
-        </div>
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-brand-900 p-4 text-white lg:flex">
+        <Logo className="mb-6 px-2 pt-1" />
+        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-4">{nav}</div>
         {userBox}
       </aside>
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between bg-brand-900 px-4 py-3 text-white lg:hidden">
         <Logo />
+        <div className="ml-auto mr-1"><NotificationBell placement="down" /></div>
         <button onClick={() => setMenuOpen((o) => !o)} className="rounded-md p-2 hover:bg-brand-800" aria-label="Toggle menu" aria-expanded={menuOpen}>
           <Icon d={menuOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
         </button>
       </header>
       {menuOpen && (
-        <div className="fixed inset-x-0 top-[60px] z-20 space-y-4 bg-brand-900 p-4 shadow-lg lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 top-[60px] z-20 space-y-4 overflow-y-auto bg-brand-900 p-4 shadow-lg lg:hidden">
           {nav}
           {userBox}
         </div>

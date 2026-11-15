@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from sqlalchemy import func, or_
 from sqlmodel import col, select
 
@@ -19,6 +19,7 @@ from app.schemas.patients import (
     RiskScreeningRequest,
     VisitSummary,
 )
+from app.services import audit
 from app.services.cases import case_query
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
@@ -89,20 +90,22 @@ def list_patients(
 
 
 @router.post("", response_model=PatientRead, status_code=status.HTTP_201_CREATED, summary="Register a patient")
-def create_patient(body: PatientCreate, session: SessionDep, _user: CurrentUser):
+def create_patient(body: PatientCreate, session: SessionDep, user: CurrentUser, request: Request):
     _ensure_abha_unique(session, body.abha_id)
     patient = Patient(**body.model_dump(), opd_number=f"TMP-{uuid4().hex[:12]}")
     session.add(patient)
     session.flush()  # assign id
     patient.opd_number = f"GDC-{date.today().year}-{patient.id:06d}"
+    audit.record(session, user, "create", "patient", patient.id, f"Registered patient {patient.opd_number}", request)
     session.commit()
     session.refresh(patient)
     return patient
 
 
 @router.get("/{patient_id}", response_model=PatientDetail, summary="Patient profile with full visit history")
-def get_patient(patient_id: int, session: SessionDep, _user: CurrentUser):
+def get_patient(patient_id: int, session: SessionDep, user: CurrentUser, request: Request):
     patient = _get_or_404(session, patient_id)
+    audit.record_view(session, user, "patient", patient.id, f"Viewed patient record {patient.opd_number}", request)
     rows = session.exec(
         case_query().where(Case.patient_id == patient_id).order_by(Case.visit_date.desc(), Case.id.desc())
     ).all()
@@ -118,7 +121,8 @@ def get_patient(patient_id: int, session: SessionDep, _user: CurrentUser):
 
 
 @router.patch("/{patient_id}", response_model=PatientRead, summary="Update patient details")
-def update_patient(patient_id: int, body: PatientUpdate, session: SessionDep, _user: CurrentUser):
+def update_patient(patient_id: int, body: PatientUpdate, session: SessionDep, user: CurrentUser,
+                   request: Request):
     patient = _get_or_404(session, patient_id)
     changes = body.model_dump(exclude_unset=True)
     for required in ("name", "age", "sex", "taluka"):
@@ -129,29 +133,36 @@ def update_patient(patient_id: int, body: PatientUpdate, session: SessionDep, _u
     for key, value in changes.items():
         setattr(patient, key, value)
     session.add(patient)
+    fields = ", ".join(sorted(changes)) or "no fields"
+    audit.record(session, user, "update", "patient", patient.id, f"Edited {patient.opd_number}: {fields}", request)
     session.commit()
     session.refresh(patient)
     return patient
 
 
 @router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete patient (admin only)")
-def delete_patient(patient_id: int, session: SessionDep, _admin: AdminUser) -> None:
+def delete_patient(patient_id: int, session: SessionDep, admin: AdminUser, request: Request) -> None:
     patient = _get_or_404(session, patient_id)
     # ORM cascade on Case.findings removes tooth findings with each case.
     for case in session.exec(select(Case).where(Case.patient_id == patient_id)).all():
         session.delete(case)
+    audit.record(session, admin, "delete", "patient", patient.id,
+                 f"Deleted patient {patient.opd_number} and their cases", request)
     session.delete(patient)
     session.commit()
 
 
 @router.post("/{patient_id}/risk-screening", response_model=RiskScreening,
              summary="Oral cancer / PMD risk screening with explanation and suggested action")
-def risk_screening(patient_id: int, session: SessionDep, _user: CurrentUser,
+def risk_screening(patient_id: int, session: SessionDep, user: CurrentUser, request: Request,
                    body: RiskScreeningRequest | None = None):
     from ml.oral_risk import screen  # imported lazily: keeps app start-up light
 
     patient = _get_or_404(session, patient_id)
     try:
-        return screen(session, patient, body.lesion_observed if body else None)
+        result = screen(session, patient, body.lesion_observed if body else None)
     except FileNotFoundError as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from None
+    audit.record_view(session, user, "patient", patient.id,
+                      f"Risk screening for {patient.opd_number}: {result['risk_level']}", request)
+    return result

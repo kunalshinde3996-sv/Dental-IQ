@@ -53,6 +53,16 @@ def db():
     yield ids
 
 
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limiter():
+    """The limiter is process-wide; keep tests independent of each other's failed logins."""
+    from app.routers.auth import limiter
+
+    limiter._failures.clear()
+    yield
+    limiter._failures.clear()
+
+
 @pytest.fixture()
 def client(db):
     with TestClient(app) as c:

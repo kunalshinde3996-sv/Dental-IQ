@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlmodel import Field, SQLModel
 
-from app.models._base import utcnow
+from app.models._base import UTCDateTime, utcnow
 from app.models.enums import Department, Role, StudentYear
 
 
@@ -14,7 +14,7 @@ class User(SQLModel, table=True):
     password_hash: str = Field(max_length=255)
     role: Role = Field(index=True)
     is_active: bool = True
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=UTCDateTime)
 
 
 class Student(SQLModel, table=True):

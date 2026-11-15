@@ -15,10 +15,10 @@ from app.core.config import get_settings
 from app.main import app
 
 PASSWORDS = {
-    "admin@gdch.demo": "Admin@123",
-    "faculty@gdch.demo": "Faculty@123",
-    "student@gdch.demo": "Student@123",
-    "atrisk.student@gdch.demo": "Student@123",
+    "admin@gdch.demo": "Office#2026",
+    "faculty@gdch.demo": "Clinic#2026",
+    "student@gdch.demo": "Molar#2026",
+    "atrisk.student@gdch.demo": "Molar#2026",
 }
 
 
@@ -339,3 +339,36 @@ def test_alembic_migration_matches_models(tmp_path, monkeypatch):
     finally:
         monkeypatch.undo()
         get_settings.cache_clear()
+
+
+# --- Phase 3: notifications produced from the seeded data ----------------------------------
+
+def test_at_risk_and_allocation_notifications(seeded):
+    admin = auth(seeded, "admin@gdch.demo")
+    notes = seeded.get("/api/notifications", headers=admin, params={"limit": 200}).json()
+    at_risk = [n for n in notes if n["kind"] == "at_risk_alert"]
+    gt = _ground_truth()
+    flagged_rolls = {n["title"].split("(")[-1].rstrip(")") for n in at_risk}
+    assert flagged_rolls == {roll for roll, risk in gt.items() if risk}
+    # Re-running the scan inside the dedupe window creates nothing new.
+    before = len(at_risk)
+    seeded.post("/api/notifications/refresh-alerts", headers=admin)
+    again = [n for n in seeded.get("/api/notifications", headers=admin, params={"limit": 200}).json()
+             if n["kind"] == "at_risk_alert"]
+    assert len(again) == before
+
+    faculty = auth(seeded, "faculty@gdch.demo")
+    rec = seeded.get("/api/allocation/recommendations", params={"patient_id": 7, "department": "periodontics"},
+                     headers=faculty).json()
+    sid = rec["candidates"][0]["student_id"]
+    seeded.post("/api/allocation/assign", headers=faculty, json={
+        "patient_id": 7, "department": "periodontics", "student_id": sid, "chief_complaint": "Scaling referral"})
+    student_user = next(s for s in seeded.get("/api/students", headers=admin).json() if s["id"] == sid)
+    from sqlmodel import Session, select
+
+    from app.database import engine
+    from app.models import Notification
+
+    with Session(engine) as s:
+        kinds = s.exec(select(Notification.kind).where(Notification.user_id == student_user["user_id"])).all()
+    assert "patient_allocated" in kinds

@@ -62,13 +62,13 @@ STUDENTS_PER_YEAR = 12
 ATTENDANCE_DAYS = 91
 CASE_HISTORY_DAYS = 180
 FOLLOW_UP_DAYS = 90
-DEFAULT_PASSWORD = "Password@123"
+DEFAULT_PASSWORD = "Dental#2026"  # all demo passwords satisfy app.core.passwords policy (checked below)
 
 DEMO_ACCOUNTS = {
-    "admin": ("admin@gdch.demo", "Admin@123"),
-    "faculty": ("faculty@gdch.demo", "Faculty@123"),
-    "student": ("student@gdch.demo", "Student@123"),
-    "atrisk": ("atrisk.student@gdch.demo", "Student@123"),
+    "admin": ("admin@gdch.demo", "Office#2026"),
+    "faculty": ("faculty@gdch.demo", "Clinic#2026"),
+    "student": ("student@gdch.demo", "Molar#2026"),
+    "atrisk": ("atrisk.student@gdch.demo", "Molar#2026"),
 }
 
 
@@ -534,7 +534,18 @@ def write_ground_truth(session: Session, students: list[Student], profiles: dict
 NOT_AT_RISK = ("typical", "demo: strong student")
 
 
+def check_demo_passwords() -> None:
+    """Demo accounts must obey the same password policy the API enforces."""
+    from app.core.passwords import password_problems
+
+    for email, pwd in [*DEMO_ACCOUNTS.values(), ("someone@students.gdch.demo", DEFAULT_PASSWORD)]:
+        problems = password_problems(pwd, email)
+        if problems:
+            raise SystemExit(f"Demo password for {email} violates the password policy: {problems}")
+
+
 def seed(reset: bool, train: bool = True, verbose: bool = True) -> None:
+    check_demo_passwords()
     say = print if verbose else (lambda *_a, **_k: None)
     if reset:
         import app.models  # noqa: F401  (register tables before drop)
@@ -576,6 +587,11 @@ def seed(reset: bool, train: bool = True, verbose: bool = True) -> None:
         except ImportError:  # ML layer not installed
             return
         train_all(report=False, verbose=verbose)
+        from app.services.notifications import refresh_at_risk_alerts
+
+        with Session(engine) as session:
+            n = refresh_at_risk_alerts(session)
+        say(f"  at-risk notifications created for {n} students (sent to admins and HODs)")
 
 
 def stamp_alembic_head() -> None:

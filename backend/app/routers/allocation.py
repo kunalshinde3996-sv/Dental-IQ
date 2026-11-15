@@ -1,7 +1,7 @@
 """Smart patient allocation and department resource view (faculty/admin)."""
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from sqlmodel import select
 
 from app.core.deps import SessionDep, StaffUser, get_faculty_profile
@@ -10,6 +10,7 @@ from app.models.enums import Department, Role
 from app.schemas.allocation import AllocationAssign, AllocationRecommendation, ResourceView
 from app.schemas.cases import CaseRead
 from app.services import allocation as AL
+from app.services import audit, notifications
 from app.services.cases import load_case_read, validate_supervisor
 
 router = APIRouter(prefix="/api/allocation", tags=["allocation"])
@@ -36,7 +37,7 @@ def recommendations(
 
 @router.post("/assign", response_model=CaseRead, status_code=status.HTTP_201_CREATED,
              summary="Assign the patient to a student: creates a draft case for that student")
-def assign(body: AllocationAssign, session: SessionDep, user: StaffUser):
+def assign(body: AllocationAssign, session: SessionDep, user: StaffUser, request: Request):
     _patient(session, body.patient_id)
     student = session.get(Student, body.student_id)
     if student is None:
@@ -57,6 +58,10 @@ def assign(body: AllocationAssign, session: SessionDep, user: StaffUser):
     case = Case(patient_id=body.patient_id, student_id=student.id, faculty_id=faculty.id,
                 department=body.department, visit_date=date.today(), chief_complaint=body.chief_complaint.strip())
     session.add(case)
+    session.flush()
+    audit.record(session, user, "allocate", "case", case.id,
+                 f"Allocated patient #{case.patient_id} to student #{student.id} ({body.department.value})", request)
+    notifications.patient_allocated(session, case, user)
     session.commit()
     return load_case_read(session, case.id)
 
