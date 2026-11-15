@@ -67,6 +67,33 @@ class AssessmentCreate(BaseModel):
         return self
 
 
+class MarkEntry(BaseModel):
+    student_id: int
+    marks: float = Field(ge=0)
+
+
+class AssessmentBulkCreate(BaseModel):
+    """Record one exam for many students. Re-saving the same exam updates the marks (upsert)."""
+
+    subject: str = Field(min_length=2, max_length=80)
+    exam_type: ExamType
+    max_marks: float = Field(gt=0, le=1000)
+    exam_date: date
+    entries: list[MarkEntry] = Field(min_length=1, max_length=500)
+
+    @model_validator(mode="after")
+    def _check(self) -> "AssessmentBulkCreate":
+        if self.exam_date > date.today():
+            raise ValueError("exam_date cannot be in the future")
+        ids = [e.student_id for e in self.entries]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Duplicate student_id in entries")
+        over = [e.student_id for e in self.entries if e.marks > self.max_marks]
+        if over:
+            raise ValueError(f"marks exceed max_marks for student_id(s) {over}")
+        return self
+
+
 class AssessmentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

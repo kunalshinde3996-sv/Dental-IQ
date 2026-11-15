@@ -218,7 +218,7 @@ export function CaseFormPage() {
         <Card>
           <CardHeader title="Tooth chart (FDI)" subtitle={`${findings.length} tooth finding${findings.length === 1 ? '' : 's'} recorded`} />
           <div className="space-y-6 p-5">
-            <ToothChart findings={findings} onChange={setFindings} />
+            <ToothChart findings={findings} onChange={setFindings} preferredDentition={department === 'pedodontics' ? 'primary' : undefined} />
             {findings.length > 0 && <FindingsTable findings={findings} />}
           </div>
         </Card>

@@ -10,6 +10,8 @@ import { CaseDetailPage } from './pages/cases/CaseDetailPage'
 import { CaseFormPage } from './pages/cases/CaseFormPage'
 import { ApprovalsPage } from './pages/faculty/ApprovalsPage'
 import { AtRiskStudentsPage } from './pages/faculty/AtRiskStudentsPage'
+import { AttendancePage } from './pages/faculty/AttendancePage'
+import { MarksEntryPage } from './pages/faculty/MarksEntryPage'
 import { LoginPage } from './pages/LoginPage'
 import { PatientFormPage } from './pages/patients/PatientFormPage'
 import { PatientProfilePage } from './pages/patients/PatientProfilePage'
@@ -59,6 +61,8 @@ export default function App() {
             <Route path="at-risk" element={<RequireAuth roles={['faculty', 'admin']}><AtRiskStudentsPage /></RequireAuth>} />
             <Route path="allocate" element={<RequireAuth roles={['faculty', 'admin']}><AllocatePatientPage /></RequireAuth>} />
             <Route path="department-load" element={<RequireAuth roles={['faculty', 'admin']}><DepartmentLoadPage /></RequireAuth>} />
+            <Route path="attendance" element={<RequireAuth roles={['faculty', 'admin']}><AttendancePage /></RequireAuth>} />
+            <Route path="marks" element={<RequireAuth roles={['faculty', 'admin']}><MarksEntryPage /></RequireAuth>} />
             <Route path="insights" element={<RequireAuth roles={['faculty', 'admin']}><PopulationInsightsPage /></RequireAuth>} />
 
             {/* Admin */}

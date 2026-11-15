@@ -1,22 +1,39 @@
-// Interactive FDI odontogram for the 32 permanent teeth.
+// Interactive FDI odontogram: 32 permanent teeth or 20 primary (deciduous) teeth.
 //
 // Layout follows the clinical convention (viewer facing the patient):
-//   upper right 18..11 | upper left 21..28
-//   lower right 48..41 | lower left 31..38
-import { useState } from 'react'
+//   permanent  upper right 18..11 | upper left 21..28    primary  55..51 | 61..65
+//              lower right 48..41 | lower left 31..38             85..81 | 71..75
+import { useEffect, useState } from 'react'
 import type { ToothCondition, ToothFindingInput } from '../api/types'
 import { SURFACES, TOOTH_CONDITIONS, entries } from '../lib/labels'
-import { Button, Field, Input, cx } from './ui'
+import { Button, Field, Input, Segmented, cx } from './ui'
 
-const UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
-const LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
+export type Dentition = 'permanent' | 'primary'
 
-const QUADRANT = ['', 'Upper right', 'Upper left', 'Lower left', 'Lower right']
+const ARCHES: Record<Dentition, { upper: number[]; lower: number[] }> = {
+  permanent: {
+    upper: [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28],
+    lower: [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38],
+  },
+  primary: {
+    upper: [55, 54, 53, 52, 51, 61, 62, 63, 64, 65],
+    lower: [85, 84, 83, 82, 81, 71, 72, 73, 74, 75],
+  },
+}
+
+const QUADRANT = ['', 'Upper right', 'Upper left', 'Lower left', 'Lower right',
+  'Upper right', 'Upper left', 'Lower left', 'Lower right']
 const TOOTH_NAME = ['', 'central incisor', 'lateral incisor', 'canine', 'first premolar',
   'second premolar', 'first molar', 'second molar', 'third molar']
+const PRIMARY_NAME = ['', 'central incisor', 'lateral incisor', 'canine', 'first molar', 'second molar']
+
+export const isPrimary = (fdi: number) => fdi >= 51
 
 export function toothName(fdi: number): string {
-  return `${QUADRANT[Math.floor(fdi / 10)]} ${TOOTH_NAME[fdi % 10]}`
+  const q = Math.floor(fdi / 10)
+  return isPrimary(fdi)
+    ? `${QUADRANT[q]} primary ${PRIMARY_NAME[fdi % 10]}`
+    : `${QUADRANT[q]} ${TOOTH_NAME[fdi % 10]}`
 }
 
 type Kind = 'incisor' | 'canine' | 'premolar' | 'molar'
@@ -25,6 +42,7 @@ function kindOf(fdi: number): Kind {
   const t = fdi % 10
   if (t <= 2) return 'incisor'
   if (t === 3) return 'canine'
+  if (isPrimary(fdi)) return 'molar' // primary 4 and 5 are molars
   if (t <= 5) return 'premolar'
   return 'molar'
 }
@@ -36,7 +54,8 @@ const H = 64
 function ToothShape({ fdi, condition }: { fdi: number; condition?: ToothCondition }) {
   const kind = kindOf(fdi)
   const w = WIDTH[kind]
-  const lower = fdi >= 31
+  const q = Math.floor(fdi / 10)
+  const lower = [3, 4, 7, 8].includes(q)
   const missing = condition === 'missing'
   const crownFill = condition ? TOOTH_CONDITIONS[condition].fill : '#ffffff'
   const stroke = missing ? '#94a3b8' : '#64748b'
@@ -76,10 +95,33 @@ interface ToothChartProps {
   findings: ToothFindingInput[]
   onChange?: (findings: ToothFindingInput[]) => void
   readOnly?: boolean
+  /** Suggested dentition (e.g. 'primary' for Pedodontics). Existing findings take precedence. */
+  preferredDentition?: Dentition
 }
 
-export function ToothChart({ findings, onChange, readOnly = false }: ToothChartProps) {
+function initialDentition(findings: ToothFindingInput[], preferred?: Dentition): Dentition {
+  const primary = findings.filter((f) => isPrimary(f.tooth_number)).length
+  const permanent = findings.length - primary
+  if (primary || permanent) return primary > permanent ? 'primary' : 'permanent'
+  return preferred ?? 'permanent'
+}
+
+export function ToothChart({ findings, onChange, readOnly = false, preferredDentition }: ToothChartProps) {
   const [selected, setSelected] = useState<number | null>(null)
+  const [dentition, setDentition] = useState<Dentition>(() => initialDentition(findings, preferredDentition))
+  const counts = {
+    permanent: findings.filter((f) => !isPrimary(f.tooth_number)).length,
+    primary: findings.filter((f) => isPrimary(f.tooth_number)).length,
+  }
+
+  // Follow the suggestion (e.g. department switched to Pedodontics) while nothing is charted yet.
+  useEffect(() => {
+    if (preferredDentition && findings.length === 0) setDentition(preferredDentition)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferredDentition])
+
+  const { upper, lower } = ARCHES[dentition]
+  const half = upper.length / 2
   const byTooth = new Map(findings.map((f) => [f.tooth_number, f]))
   const current = selected !== null ? byTooth.get(selected) : undefined
 
@@ -136,6 +178,22 @@ export function ToothChart({ findings, onChange, readOnly = false }: ToothChartP
 
   return (
     <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <Segmented<Dentition>
+          name="Dentition"
+          value={dentition}
+          onChange={(d) => { setDentition(d); setSelected(null) }}
+          options={[
+            { value: 'permanent', label: `Permanent (32)${counts.permanent ? ` · ${counts.permanent}` : ''}` },
+            { value: 'primary', label: `Primary (20)${counts.primary ? ` · ${counts.primary}` : ''}` },
+          ]}
+        />
+        {counts[dentition === 'primary' ? 'permanent' : 'primary'] > 0 && (
+          <span className="text-xs text-amber-700">
+            {counts[dentition === 'primary' ? 'permanent' : 'primary']} finding(s) on the {dentition === 'primary' ? 'permanent' : 'primary'} chart
+          </span>
+        )}
+      </div>
       <div className="overflow-x-auto pb-2">
         <div className="mx-auto w-max min-w-full">
           <div className="flex justify-between px-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
@@ -143,13 +201,13 @@ export function ToothChart({ findings, onChange, readOnly = false }: ToothChartP
             <span>Upper left</span>
           </div>
           <div className="flex items-end justify-center">
-            <div className="flex items-end gap-0.5 border-r-2 border-dashed border-slate-200 pr-1">{UPPER.slice(0, 8).map((t) => renderTooth(t, 'upper'))}</div>
-            <div className="flex items-end gap-0.5 pl-1">{UPPER.slice(8).map((t) => renderTooth(t, 'upper'))}</div>
+            <div className="flex items-end gap-0.5 border-r-2 border-dashed border-slate-200 pr-1">{upper.slice(0, half).map((t) => renderTooth(t, 'upper'))}</div>
+            <div className="flex items-end gap-0.5 pl-1">{upper.slice(half).map((t) => renderTooth(t, 'upper'))}</div>
           </div>
           <div className="my-1 border-t-2 border-dashed border-slate-200" />
           <div className="flex items-start justify-center">
-            <div className="flex items-start gap-0.5 border-r-2 border-dashed border-slate-200 pr-1">{LOWER.slice(0, 8).map((t) => renderTooth(t, 'lower'))}</div>
-            <div className="flex items-start gap-0.5 pl-1">{LOWER.slice(8).map((t) => renderTooth(t, 'lower'))}</div>
+            <div className="flex items-start gap-0.5 border-r-2 border-dashed border-slate-200 pr-1">{lower.slice(0, half).map((t) => renderTooth(t, 'lower'))}</div>
+            <div className="flex items-start gap-0.5 pl-1">{lower.slice(half).map((t) => renderTooth(t, 'lower'))}</div>
           </div>
           <div className="flex justify-between px-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
             <span>Lower right</span>

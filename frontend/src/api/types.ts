@@ -463,3 +463,16 @@ export interface LearningPlan {
   focus_subjects: SubjectPerformance[]
   all_subjects: SubjectPerformance[]
 }
+
+// ---------------------------------------------------------------- Phase 2: attendance + marks entry
+
+export type AttendanceSessionType = 'theory' | 'practical' | 'clinic'
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
+
+export interface AttendanceRead {
+  id: number
+  student_id: number
+  date: string
+  session: AttendanceSessionType
+  status: AttendanceStatus
+}

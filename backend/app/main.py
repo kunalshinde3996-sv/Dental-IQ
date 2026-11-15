@@ -17,7 +17,8 @@ logger = logging.getLogger("dental_iq")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    create_db_and_tables()
+    if settings.auto_create_tables:
+        create_db_and_tables()
     yield
 
 

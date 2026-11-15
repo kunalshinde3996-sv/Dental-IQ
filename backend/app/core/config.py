@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     app_name: str = "Dental-IQ API"
     # SQLite by default; set DATABASE_URL to a PostgreSQL URL to switch.
     database_url: str = "sqlite:///./dental_iq.db"
+    # Dev convenience: create missing tables at start-up. Set false in production and run
+    # `alembic upgrade head` instead.
+    auto_create_tables: bool = True
     jwt_secret: str = "dev-only-insecure-secret-change-me"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 480

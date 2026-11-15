@@ -1,7 +1,17 @@
 """Phase-2 tests on a fully seeded (synthetic) database: analytics consistency, ML sanity, alerts, allocation."""
-import pytest
-from fastapi.testclient import TestClient
+from pathlib import Path
 
+import pytest
+from alembic import command
+from alembic.autogenerate import compare_metadata
+from alembic.config import Config
+from alembic.migration import MigrationContext
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlmodel import SQLModel
+
+import app.models as _models  # noqa: F401  (register tables for the migration comparison)
+from app.core.config import get_settings
 from app.main import app
 
 PASSWORDS = {
@@ -266,3 +276,51 @@ def test_learning_plan_preclinical_and_access(seeded):
     assert plan["is_clinical"] is False and plan["focus_departments"] == []
     other = seeded.get(f"/api/students/{bds1['id']}/learning-plan", headers=auth(seeded, "student@gdch.demo"))
     assert other.status_code == 403
+
+
+# --- Step 6: marks entry, primary teeth, migrations ------------------------------------------
+
+def test_bulk_marks_upsert_and_validation(seeded):
+    h = auth(seeded, "faculty@gdch.demo")
+    bds4 = seeded.get("/api/students", params={"year": "bds4"}, headers=h).json()[:3]
+    subjects = seeded.get("/api/assessments/subjects", params={"year": "bds4"}, headers=h).json()
+    assert "Periodontology" in subjects
+    body = {"subject": "Public Health Dentistry", "exam_type": "viva", "max_marks": 20, "exam_date": "2026-01-10",
+            "entries": [{"student_id": s["id"], "marks": 15} for s in bds4]}
+    first = seeded.post("/api/assessments/bulk", json=body, headers=h)
+    assert first.status_code == 201 and len(first.json()) == 3
+    body["entries"][0]["marks"] = 18  # correction -> update, not a duplicate row
+    second = seeded.post("/api/assessments/bulk", json=body, headers=h).json()
+    assert {a["id"] for a in second} == {a["id"] for a in first.json()}
+    assert second[0]["marks"] == 18 and second[0]["percentage"] == 90.0
+    body["entries"][1]["marks"] = 25  # above max
+    assert seeded.post("/api/assessments/bulk", json=body, headers=h).status_code == 422
+    assert seeded.post("/api/assessments/bulk", json=body, headers=auth(seeded, "student@gdch.demo")).status_code == 403
+
+
+def test_primary_teeth_in_seeded_cases(seeded):
+    h = auth(seeded, "faculty@gdch.demo")
+    cases = seeded.get("/api/cases", params={"department": "pedodontics", "limit": 500}, headers=h).json()["items"]
+    teeth = {f["tooth_number"] for c in cases for f in c["findings"]}
+    assert any(t >= 51 for t in teeth), "pedodontic cases should chart primary teeth"
+
+
+def test_alembic_migration_matches_models(tmp_path, monkeypatch):
+    """`alembic upgrade head` on an empty DB must produce exactly the SQLModel schema."""
+    root = Path(__file__).resolve().parents[1]
+    url = f"sqlite:///{(tmp_path / 'migrated.db').as_posix()}"
+    monkeypatch.setenv("DATABASE_URL", url)
+    get_settings.cache_clear()  # env.py reads DATABASE_URL through the cached settings
+    try:
+        cfg = Config(str(root / "alembic.ini"))
+        cfg.set_main_option("script_location", str(root / "migrations"))
+        command.upgrade(cfg, "head")
+        engine = create_engine(url)
+        with engine.connect() as conn:
+            diff = compare_metadata(MigrationContext.configure(conn), SQLModel.metadata)
+        engine.dispose()
+        assert diff == [], diff
+        command.downgrade(cfg, "base")
+    finally:
+        monkeypatch.undo()
+        get_settings.cache_clear()

@@ -21,6 +21,10 @@ import type {
   StudentAlert,
   FocusAreas,
   LearningPlan,
+  AttendanceRead,
+  AttendanceSessionType,
+  AttendanceStatus,
+  ExamType,
   AllocationRecommendation,
   ResourceView,
   StudentQuotaProgress,
@@ -98,4 +102,19 @@ export const allocationApi = {
   assign: (body: { patient_id: number; department: Department; student_id: number; chief_complaint: string }) =>
     request<CaseRead>('POST', '/allocation/assign', { body }),
   resources: (days: number) => request<ResourceView>('GET', '/allocation/resources', { query: { days } }),
+}
+
+export const attendanceApi = {
+  list: (query: { date_from?: string; date_to?: string; session?: AttendanceSessionType; student_id?: number }) =>
+    request<AttendanceRead[]>('GET', '/attendance', { query: { ...query, limit: 5000 } }),
+  bulk: (body: { date: string; session: AttendanceSessionType; entries: { student_id: number; status: AttendanceStatus }[] }) =>
+    request<AttendanceRead[]>('POST', '/attendance/bulk', { body }),
+}
+
+export const marksApi = {
+  subjects: (year?: StudentYear) => request<string[]>('GET', '/assessments/subjects', { query: { year } }),
+  list: (query: { subject?: string; exam_type?: ExamType }) =>
+    request<AssessmentRead[]>('GET', '/assessments', { query: { ...query, limit: 5000 } }),
+  bulk: (body: { subject: string; exam_type: ExamType; max_marks: number; exam_date: string; entries: { student_id: number; marks: number }[] }) =>
+    request<AssessmentRead[]>('POST', '/assessments/bulk', { body }),
 }

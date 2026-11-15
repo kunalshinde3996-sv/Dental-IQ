@@ -8,6 +8,7 @@ from app.core.deps import AdminUser, CurrentUser, SessionDep, StaffUser, get_stu
 from app.models import Assessment, Attendance, ClinicalQuota, Student
 from app.models.enums import AttendanceSession, ExamType, Role, StudentYear
 from app.schemas.academic import (
+    AssessmentBulkCreate,
     AssessmentCreate,
     AssessmentRead,
     AttendanceBulkCreate,
@@ -124,6 +125,43 @@ def create_assessment(body: AssessmentCreate, session: SessionDep, _staff: Staff
     session.commit()
     session.refresh(assessment)
     return _assessment_read(assessment)
+
+
+@router.get("/assessments/subjects", response_model=list[str],
+            summary="Subjects already assessed for a year (for the marks-entry picker)")
+def assessment_subjects(session: SessionDep, _staff: StaffUser, year: StudentYear | None = None):
+    stmt = select(Assessment.subject).distinct()
+    if year:
+        stmt = stmt.join(Student, Student.id == Assessment.student_id).where(Student.year == year)
+    return sorted(session.exec(stmt).all())
+
+
+@router.post("/assessments/bulk", response_model=list[AssessmentRead], status_code=status.HTTP_201_CREATED,
+             summary="Record one exam's marks for many students (faculty/admin). Upserts on student+subject+type+date")
+def bulk_assessments(body: AssessmentBulkCreate, session: SessionDep, _staff: StaffUser):
+    ids = [e.student_id for e in body.entries]
+    found = set(session.exec(select(Student.id).where(col(Student.id).in_(ids))).all())
+    unknown = sorted(set(ids) - found)
+    if unknown:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Unknown student_id(s): {unknown}")
+    existing = {
+        a.student_id: a
+        for a in session.exec(select(Assessment).where(
+            Assessment.subject == body.subject.strip(), Assessment.exam_type == body.exam_type,
+            Assessment.exam_date == body.exam_date, col(Assessment.student_id).in_(ids))).all()
+    }
+    saved = []
+    for e in body.entries:
+        a = existing.get(e.student_id) or Assessment(
+            student_id=e.student_id, subject=body.subject.strip(), exam_type=body.exam_type,
+            exam_date=body.exam_date, marks=e.marks, max_marks=body.max_marks)
+        a.marks, a.max_marks = e.marks, body.max_marks
+        session.add(a)
+        saved.append(a)
+    session.commit()
+    for a in saved:
+        session.refresh(a)
+    return [_assessment_read(a) for a in saved]
 
 
 @router.delete("/assessments/{assessment_id}", status_code=status.HTTP_204_NO_CONTENT,
