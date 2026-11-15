@@ -378,3 +378,56 @@ export interface FocusAreas {
   strengths: string[]
   summary: string
 }
+
+// ---------------------------------------------------------------- Phase 2: allocation
+
+export interface AllocationCandidate {
+  student_id: number
+  name: string
+  roll_no: string
+  year: StudentYear
+  score: number
+  components: Record<'quota_gap' | 'workload' | 'pace' | 'seniority', number>
+  approved: number
+  required: number
+  remaining: number
+  pending: number
+  open_cases: number
+  recent_attendance_pct: number | null
+  available: boolean
+  reasons: string[]
+}
+
+export interface AllocationRecommendation {
+  patient_id: number
+  patient_name: string
+  department: Department
+  eligible_count: number
+  eligible_years: StudentYear[]
+  candidates: AllocationCandidate[]
+  weights: Record<string, number>
+  warnings: string[]
+}
+
+export type LoadStatus = 'overloaded' | 'short_supply' | 'balanced' | 'spare_capacity'
+
+export interface DepartmentLoad {
+  department: Department
+  faculty: number
+  cases: number
+  cases_per_faculty: number | null
+  pending_reviews: number
+  pending_per_faculty: number | null
+  eligible_students: number
+  quota_remaining: number
+  weeks_to_clear_quota: number | null
+  load_index: number | null
+  status: LoadStatus
+  reasons: string[]
+}
+
+export interface ResourceView {
+  days: number
+  mean_cases_per_faculty: number
+  departments: DepartmentLoad[]
+}

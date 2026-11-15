@@ -20,6 +20,8 @@ import type {
   RiskScreening,
   StudentAlert,
   FocusAreas,
+  AllocationRecommendation,
+  ResourceView,
   StudentQuotaProgress,
   StudentRead,
   StudentYear,
@@ -86,4 +88,12 @@ export const analyticsApi = {
 export const intelligenceApi = {
   alerts: () => request<StudentAlert[]>('GET', '/alerts/students'),
   focusAreas: (studentId: number) => request<FocusAreas>('GET', `/students/${studentId}/focus-areas`),
+}
+
+export const allocationApi = {
+  recommend: (patientId: number, department: Department) =>
+    request<AllocationRecommendation>('GET', '/allocation/recommendations', { query: { patient_id: patientId, department } }),
+  assign: (body: { patient_id: number; department: Department; student_id: number; chief_complaint: string }) =>
+    request<CaseRead>('POST', '/allocation/assign', { body }),
+  resources: (days: number) => request<ResourceView>('GET', '/allocation/resources', { query: { days } }),
 }

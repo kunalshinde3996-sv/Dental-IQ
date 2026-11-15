@@ -182,3 +182,56 @@ def test_alerts_and_focus_access(seeded):
     assert seeded.get(f"/api/students/{strong_id}/focus-areas", headers=student).status_code == 403
     assert seeded.get(f"/api/students/{strong_id}/focus-areas", headers=strong).json()["on_track"] is True
     assert seeded.get(f"/api/students/{me}/risk", headers=student).status_code == 403
+
+
+# --- Step 4: smart allocation + resource view ----------------------------------------------
+
+def test_allocation_ranks_by_quota_gap_with_reasons(seeded):
+    h = auth(seeded, "faculty@gdch.demo")
+    rec = seeded.get("/api/allocation/recommendations", params={"patient_id": 3, "department": "endodontics"},
+                     headers=h).json()
+    cands = rec["candidates"]
+    assert 1 <= len(cands) <= 5 and rec["eligible_count"] >= len(cands)
+    assert [c["score"] for c in cands] == sorted((c["score"] for c in cands), reverse=True)
+    assert all(c["reasons"] for c in cands)
+    # The top candidate still needs Endodontics cases, and quota numbers match the student's own view.
+    top = cands[0]
+    assert top["remaining"] > 0
+    q = seeded.get(f"/api/students/{top['student_id']}/quota-progress", headers=h).json()
+    endo = next(d for d in q["departments"] if d["department"] == "endodontics")
+    assert (endo["approved"], endo["required"]) == (top["approved"], top["required"])
+    # Designed low-case students should surface near the top.
+    gt = _ground_truth()
+    assert any(gt.get(c["roll_no"]) for c in cands[:3])
+
+
+def test_assign_creates_draft_case_for_student(seeded):
+    h = auth(seeded, "faculty@gdch.demo")
+    rec = seeded.get("/api/allocation/recommendations", params={"patient_id": 5, "department": "oral_medicine"},
+                     headers=h).json()
+    sid = rec["candidates"][0]["student_id"]
+    res = seeded.post("/api/allocation/assign", headers=h, json={
+        "patient_id": 5, "department": "oral_medicine", "student_id": sid, "chief_complaint": "Screening referral"})
+    assert res.status_code == 201, res.text
+    case = res.json()
+    assert case["status"] == "draft" and case["student_id"] == sid and case["department"] == "oral_medicine"
+    me = seeded.get("/api/auth/me", headers=h).json()
+    assert case["faculty_id"] == me["faculty"]["id"]  # caller is Oral Medicine faculty -> supervises
+    # Students cannot allocate; unknown student -> 422
+    assert seeded.post("/api/allocation/assign", headers=auth(seeded, "student@gdch.demo"), json={
+        "patient_id": 5, "department": "oral_medicine", "student_id": sid, "chief_complaint": "x" * 5}).status_code == 403
+    assert seeded.post("/api/allocation/assign", headers=h, json={
+        "patient_id": 5, "department": "oral_medicine", "student_id": 99999, "chief_complaint": "Referral"}).status_code == 422
+
+
+def test_resource_view_flags_departments_consistently(seeded):
+    h = auth(seeded, "admin@gdch.demo")
+    view = seeded.get("/api/allocation/resources", params={"days": 30}, headers=h).json()
+    depts = view["departments"]
+    assert len(depts) == 8
+    assert sum(d["faculty"] for d in depts) == 10
+    statuses = {d["status"] for d in depts}
+    assert statuses <= {"overloaded", "short_supply", "balanced", "spare_capacity"}
+    assert all(d["reasons"] for d in depts if d["status"] != "balanced")
+    # Not everything can be overloaded: thresholds are relative to the college average.
+    assert sum(d["status"] == "overloaded" for d in depts) < len(depts)

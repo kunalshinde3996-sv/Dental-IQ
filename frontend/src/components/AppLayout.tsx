@@ -21,6 +21,8 @@ const ICONS = {
   students: 'M12 14l9-5-9-5-9 5 9 5zm0 0v6m0-6l6.2-3.4A12 12 0 0119 17.1 12 12 0 0012 20a12 12 0 00-7-2.9 12 12 0 01.8-6.5L12 14z',
   faculty: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
   alert: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+  route: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
+  load: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4',
   chart: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
 }
 
@@ -33,6 +35,8 @@ const NAV: Record<Role, NavItem[]> = {
   faculty: [
     { to: '/approvals', label: 'Pending Approvals', icon: ICONS.check },
     { to: '/at-risk', label: 'At-Risk Students', icon: ICONS.alert },
+    { to: '/allocate', label: 'Allocate Patient', icon: ICONS.route },
+    { to: '/department-load', label: 'Department Load', icon: ICONS.load },
     { to: '/insights', label: 'Population Insights', icon: ICONS.chart },
     { to: '/patients', label: 'Patients', icon: ICONS.patients },
   ],
@@ -41,6 +45,8 @@ const NAV: Record<Role, NavItem[]> = {
     { to: '/admin/students', label: 'Students', icon: ICONS.students },
     { to: '/admin/faculty', label: 'Faculty', icon: ICONS.faculty },
     { to: '/at-risk', label: 'At-Risk Students', icon: ICONS.alert },
+    { to: '/allocate', label: 'Allocate Patient', icon: ICONS.route },
+    { to: '/department-load', label: 'Department Load', icon: ICONS.load },
     { to: '/insights', label: 'Population Insights', icon: ICONS.chart },
     { to: '/patients', label: 'Patients', icon: ICONS.patients },
   ],

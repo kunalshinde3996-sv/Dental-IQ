@@ -2,6 +2,8 @@ import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, HOME_BY_ROLE, useAuth } from './auth/AuthContext'
 import { RequireAuth } from './auth/RequireAuth'
 import { AppLayout } from './components/AppLayout'
+import { AllocatePatientPage } from './pages/allocation/AllocatePatientPage'
+import { DepartmentLoadPage } from './pages/allocation/DepartmentLoadPage'
 import { PopulationInsightsPage } from './pages/analytics/PopulationInsightsPage'
 import { AdminFacultyPage, AdminOverviewPage, AdminStudentsPage } from './pages/admin/AdminPages'
 import { CaseDetailPage } from './pages/cases/CaseDetailPage'
@@ -55,6 +57,8 @@ export default function App() {
 
             {/* Faculty + admin: Phase-2 intelligence */}
             <Route path="at-risk" element={<RequireAuth roles={['faculty', 'admin']}><AtRiskStudentsPage /></RequireAuth>} />
+            <Route path="allocate" element={<RequireAuth roles={['faculty', 'admin']}><AllocatePatientPage /></RequireAuth>} />
+            <Route path="department-load" element={<RequireAuth roles={['faculty', 'admin']}><DepartmentLoadPage /></RequireAuth>} />
             <Route path="insights" element={<RequireAuth roles={['faculty', 'admin']}><PopulationInsightsPage /></RequireAuth>} />
 
             {/* Admin */}
