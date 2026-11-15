@@ -431,3 +431,35 @@ export interface ResourceView {
   mean_cases_per_faculty: number
   departments: DepartmentLoad[]
 }
+
+// ---------------------------------------------------------------- Phase 2: learning plan
+
+export interface SubjectPerformance {
+  subject: string
+  average_pct: number
+  latest_pct: number
+  trend: number | null
+  exams: number
+  related_department: Department | null
+  tip: string
+}
+
+export interface LearningPlan {
+  student_id: number
+  year: StudentYear
+  is_clinical: boolean
+  summary: string
+  focus_departments: {
+    department: Department
+    approved: number
+    required: number
+    remaining: number
+    pending: number
+    percent: number
+    case_types: string[]
+    where_to_find: string
+    double_priority: boolean
+  }[]
+  focus_subjects: SubjectPerformance[]
+  all_subjects: SubjectPerformance[]
+}

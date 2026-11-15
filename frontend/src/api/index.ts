@@ -20,6 +20,7 @@ import type {
   RiskScreening,
   StudentAlert,
   FocusAreas,
+  LearningPlan,
   AllocationRecommendation,
   ResourceView,
   StudentQuotaProgress,
@@ -88,6 +89,7 @@ export const analyticsApi = {
 export const intelligenceApi = {
   alerts: () => request<StudentAlert[]>('GET', '/alerts/students'),
   focusAreas: (studentId: number) => request<FocusAreas>('GET', `/students/${studentId}/focus-areas`),
+  learningPlan: (studentId: number) => request<LearningPlan>('GET', `/students/${studentId}/learning-plan`),
 }
 
 export const allocationApi = {

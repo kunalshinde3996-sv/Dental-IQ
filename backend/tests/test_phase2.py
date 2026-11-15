@@ -235,3 +235,34 @@ def test_resource_view_flags_departments_consistently(seeded):
     assert all(d["reasons"] for d in depts if d["status"] != "balanced")
     # Not everything can be overloaded: thresholds are relative to the college average.
     assert sum(d["status"] == "overloaded" for d in depts) < len(depts)
+
+
+# --- Step 5: personalised learning plan ------------------------------------------------------
+
+def test_learning_plan_matches_quota_and_marks(seeded):
+    h = auth(seeded, "atrisk.student@gdch.demo")
+    me = seeded.get("/api/auth/me", headers=h).json()["student"]["id"]
+    plan = seeded.get(f"/api/students/{me}/learning-plan", headers=h).json()
+    assert plan["is_clinical"] and plan["focus_departments"] and plan["focus_subjects"]
+    quota = {d["department"]: d for d in seeded.get(f"/api/students/{me}/quota-progress", headers=h).json()["departments"]}
+    for d in plan["focus_departments"]:
+        assert (d["approved"], d["required"]) == (quota[d["department"]]["approved"], quota[d["department"]]["required"])
+        assert d["case_types"] and d["where_to_find"]
+    # Weakest subject first, and every focus subject is genuinely weak.
+    avgs = [s["average_pct"] for s in plan["all_subjects"]]
+    assert avgs == sorted(avgs)
+    assert plan["focus_subjects"][0]["subject"] == plan["all_subjects"][0]["subject"]
+    # Focus areas card lists departments in the same priority order as the learning plan.
+    focus = seeded.get(f"/api/students/{me}/focus-areas", headers=h).json()
+    clinical = next(i for i in focus["items"] if i["area"] == "clinical")["message"]
+    first = plan["focus_departments"][0]
+    assert f"({first['approved']}/{first['required']})" in clinical.split(",")[0]
+
+
+def test_learning_plan_preclinical_and_access(seeded):
+    admin = auth(seeded, "admin@gdch.demo")
+    bds1 = seeded.get("/api/students", params={"year": "bds1"}, headers=admin).json()[0]
+    plan = seeded.get(f"/api/students/{bds1['id']}/learning-plan", headers=admin).json()
+    assert plan["is_clinical"] is False and plan["focus_departments"] == []
+    other = seeded.get(f"/api/students/{bds1['id']}/learning-plan", headers=auth(seeded, "student@gdch.demo"))
+    assert other.status_code == 403

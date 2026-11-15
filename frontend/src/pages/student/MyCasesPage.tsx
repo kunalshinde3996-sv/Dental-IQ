@@ -8,6 +8,7 @@ import { formatDate } from '../../lib/format'
 import { CASE_STATUS, DEPARTMENT_SHORT, entries } from '../../lib/labels'
 import { useApi } from '../../lib/useApi'
 import { FocusAreasCard } from './FocusAreasCard'
+import { LearningPlanCard } from './LearningPlanCard'
 import { QuotaProgressCard } from './QuotaProgressCard'
 
 const PAGE_SIZE = 15
@@ -64,8 +65,9 @@ export function MyCasesPage() {
         </Card>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 space-y-6">
         <FocusAreasCard studentId={studentId} />
+        <LearningPlanCard studentId={studentId} />
       </div>
 
       <Card>

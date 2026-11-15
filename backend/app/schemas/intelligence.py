@@ -2,6 +2,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.models.enums import Department, StudentYear
+
 
 class AlertReason(BaseModel):
     code: str
@@ -40,6 +42,38 @@ class FocusItem(BaseModel):
     area: str
     title: str
     message: str
+
+
+class FocusDepartment(BaseModel):
+    department: Department
+    approved: int
+    required: int
+    remaining: int
+    pending: int
+    percent: float
+    case_types: list[str]
+    where_to_find: str
+    double_priority: bool
+
+
+class SubjectPerformance(BaseModel):
+    subject: str
+    average_pct: float
+    latest_pct: float
+    trend: float | None
+    exams: int
+    related_department: Department | None
+    tip: str
+
+
+class LearningPlan(BaseModel):
+    student_id: int
+    year: StudentYear
+    is_clinical: bool
+    summary: str
+    focus_departments: list[FocusDepartment]
+    focus_subjects: list[SubjectPerformance]
+    all_subjects: list[SubjectPerformance]
 
 
 class FocusAreas(BaseModel):

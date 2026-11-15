@@ -382,14 +382,17 @@ def assess_all(session: Session, signals: dict[int, StudentSignals] | None = Non
 
 # --------------------------------------------------------------------------- student-facing view
 
-def focus_areas(s: StudentSignals) -> dict:
-    """Gentle, actionable wording for the student's own dashboard (no 'at-risk' labels)."""
+def focus_areas(s: StudentSignals, priority_departments: list[Department] | None = None) -> dict:
+    """Gentle, actionable wording for the student's own dashboard (no 'at-risk' labels).
+
+    ``priority_departments`` (from the learning plan) keeps both dashboard cards in the same order.
+    """
     items: list[dict] = []
     if s.attendance_pct is not None and s.attendance_pct < ATT_MIN and s.attendance_sessions:
         # Consecutive sessions needed so that (attended + n) / (total + n) >= minimum.
         need = math.ceil((ATT_MIN / 100 * s.attendance_sessions - s.attendance_attended) / (1 - ATT_MIN / 100))
         items.append({"area": "attendance", "title": "Attendance",
-                      "message": f"You're at {s.attendance_pct:.0f}%. Attending your next {max(need, 0)} sessions "
+                      "message": f"You're at {s.attendance_pct:.1f}%. Attending your next {max(need, 0)} sessions "
                                  f"will take you past the {ATT_MIN:.0f}% requirement."})
     elif s.attendance_trend is not None and s.attendance_trend <= -ATT_DROP:
         items.append({"area": "attendance", "title": "Attendance",
@@ -397,7 +400,11 @@ def focus_areas(s: StudentSignals) -> dict:
                                  f"{s.attendance_recent_pct:.0f}% over the last 4 weeks). If something is getting "
                                  f"in the way, your mentor is happy to help."})
     if s.is_clinical and s.pace_ratio is not None and s.pace_ratio < PACE_WARNING and s.quota_gaps:
-        depts = ", ".join(f"{DEPT_SHORT[g['department']]} ({g['approved']}/{g['required']})" for g in s.quota_gaps[:3])
+        gaps = s.quota_gaps
+        if priority_departments:
+            rank = {d: i for i, d in enumerate(priority_departments)}
+            gaps = sorted(gaps, key=lambda g: rank.get(g["department"], len(rank)))
+        depts = ", ".join(f"{DEPT_SHORT[g['department']]} ({g['approved']}/{g['required']})" for g in gaps[:3])
         items.append({"area": "clinical", "title": "Clinical cases",
                       "message": f"Your quota is {s.quota_percent:.0f}% complete. Prioritise {depts}, and "
                                  f"ask your faculty to allocate matching patients."})
