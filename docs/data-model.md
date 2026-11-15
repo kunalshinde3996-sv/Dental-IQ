@@ -26,6 +26,11 @@ erDiagram
 | `attendance` | Daily attendance | student, date, session `theory/practical/clinic`, status; unique per (student, date, session) |
 | `assessment` | Marks | subject, exam_type, marks, max_marks, exam_date |
 | `clinical_quota` | Competency requirement | department, year, required_cases; unique per (department, year) |
+| `audit_event` | Append-only audit trail (Phase 3) | user snapshot (id, name, role), action, entity_type, entity_id, summary, IP, created_at |
+| `revoked_token` | Server-side logout (Phase 3) | JWT `jti`, user, expires_at |
+| `notification` | In-app notifications (Phase 3) | user, kind, title, body, link, dedupe_key, read_at |
+
+All timestamps use the `UTCDateTime` column type: stored as UTC, always returned timezone-aware.
 
 ## The core data flow
 
@@ -56,10 +61,10 @@ No new tables were needed: every Phase-2 feature is derived from the Phase-1 dat
 Trained models live in `backend/ml/artifacts/` (generated, git-ignored). The seed's ground-truth file there is used
 only for offline evaluation and is never written to the database.
 
-## Notes for Phase 3
+## Notes beyond v1.0.0
 
-- **Migrations**: Alembic is set up (`backend/migrations`); set `AUTO_CREATE_TABLES=false` outside development.
-- **ABDM**: `abha_id` is the linking key; a case maps naturally to a FHIR `Encounter` + `Condition` + `Procedure` bundle.
+- **Migrations**: Alembic (`backend/migrations`): initial schema + Phase-3 security tables. Docker runs `alembic upgrade head` on start; production never auto-creates tables.
+- **ABDM**: `abha_id` is the linking key; cases are already exported as FHIR `Encounter` + `Condition` + `Procedure` (see `abdm-roadmap.md` for the gaps to NRCeS profiles).
 - **Faculty availability**: allocation currently uses faculty head-count; a timetable table would enable true availability.
 - **Real outcomes**: a table of academic outcomes (detained / passed / repeated) would replace weak labels for the student model.
 - Clinical years: BDS 1–2 are pre-clinical, so cases and quotas apply to BDS 3, BDS 4 and interns.

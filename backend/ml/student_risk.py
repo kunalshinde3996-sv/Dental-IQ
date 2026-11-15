@@ -422,7 +422,7 @@ def focus_areas(s: StudentSignals, priority_departments: list[Department] | None
                                  f"corrections. Ask your supervisor to glance at your notes before submitting."})
     strengths = []
     if s.attendance_pct is not None and s.attendance_pct >= 85:
-        strengths.append(f"Great attendance ({s.attendance_pct:.0f}%).")
+        strengths.append(f"Great attendance ({s.attendance_pct:.1f}%).")
     if s.pace_ratio is not None and s.pace_ratio >= 1.1:
         strengths.append("Your clinical progress is ahead of your batch.")
     if s.marks_avg is not None and s.marks_avg >= 70:

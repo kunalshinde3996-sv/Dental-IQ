@@ -89,7 +89,7 @@ export function OverviewPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <Tile label="Clinical quota" value={pct(s.quota_percent)} hint={s.quota_percent === null ? 'Pre-clinical year' : `${s.quota_approved} of ${s.quota_required} approved`} to="/my-cases" />
-              <Tile label="Attendance" value={pct(s.attendance_pct)} hint="Last 12 weeks · 75% required" tone={(s.attendance_pct ?? 100) < 75 ? 'alert' : undefined} />
+              <Tile label="Attendance" value={s.attendance_pct === null ? '—' : `${s.attendance_pct.toFixed(1)}%`} hint="Last 12 weeks · 75% required" tone={(s.attendance_pct ?? 100) < 75 ? 'alert' : undefined} />
               <Tile label="Awaiting review" value={s.cases.submitted} hint="Submitted cases" to="/my-cases" />
               <Tile label="Needs changes" value={s.cases.rejected} hint="Returned by faculty" tone={s.cases.rejected ? 'alert' : undefined} to="/my-cases" />
             </div>

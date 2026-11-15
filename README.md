@@ -1,198 +1,209 @@
-# Dental-IQ
+<p align="center">
+  <img src="frontend/public/favicon.svg" width="72" alt="Dental-IQ logo" />
+</p>
 
-**AI-ready dental records + student competency platform for Goa Dental College & Hospital.**
-Hackathon prototype · **Phase 2 of 3** (intelligence layer: analytics + explainable ML).
+<h1 align="center">Dental-IQ</h1>
 
-In a dental college, students treat hospital patients under faculty supervision. Dental-IQ makes
-**one clinical case entry** feed three things at once:
-
-```
-Student records a case (FDI tooth chart) ──► Faculty approves / rejects with remarks
-        │
-        ├─► Patient EHR        – visit history + explainable oral-cancer risk screening
-        ├─► Student competency – quota progress, at-risk alerts, learning plan, smart allocation
-        └─► Population data    – taluka-wise disease burden, habit ↔ lesion associations, insights
-```
-
-### Differentiators
-1. **One case entry → patient record + student competency + population data**
-2. **India-ready**: ABHA ID, tobacco / gutkha / alcohol history driving an **oral-cancer risk screen**, Goa **taluka** insights
-3. **Explainable at-risk alerts**: reasons ("Attendance fell from 72% to 49% in the last 4 weeks") + suggested actions, never a bare score
-4. **Smart patient allocation**: patients routed to the students with the largest quota gaps, with a "why" for each
-
-Docs: [`docs/existing-solutions.md`](docs/existing-solutions.md) (gap analysis) ·
-[`docs/data-model.md`](docs/data-model.md) (schema) · [`docs/ml-report.md`](docs/ml-report.md) (models & metrics)
+<p align="center">
+  <b>One clinical case. Three outcomes.</b><br/>
+  Digital dental records, student competency and population oral-health intelligence for a dental college.<br/>
+  <sub>Hackathon prototype for Goa Dental College &amp; Hospital · v1.0.0 · <b>all data is synthetic</b></sub>
+</p>
 
 ---
 
-## Tech stack
+## The problem
+
+In a dental college, students treat hospital patients under faculty supervision. The same visit is
+recorded (if at all) in a patient file, a student log book and an attendance/marks register that never
+talk to each other. Faculty learn late that a student is falling behind, students hunt for the cases
+their quotas need, and the college's data on tobacco-driven oral disease across Goa is never analysed.
+
+## The solution
+
+**One supervised case entry feeds three outcomes:**
+
+```
+Student records a case (FDI tooth chart) ──► Faculty approves / returns it with remarks
+        │
+        ├─► Patient record      visit history, dental chart, oral-cancer risk screening, print / FHIR export
+        ├─► Student competency  quota progress, explainable at-risk alerts, learning plan, smart allocation
+        └─► Population insight  taluka-wise burden, habit ↔ lesion associations, plain-language key insights
+```
+
+### Key differentiators
+
+| | What it means in the product |
+|---|---|
+| **One entry, three outcomes** | Approving a case updates the EHR, the student's quota and the dashboards. No double entry |
+| **India-ready** | ABHA number, gutkha / smokeless tobacco, smoking and alcohol history, Goa talukas, FHIR R4 export as the base for ABDM (no live ABDM integration yet) |
+| **Explainable at-risk alerts** | Reasons such as *"Attendance fell from 72% to 42% in the last 4 weeks."* plus a suggested action; students see gentle "focus areas", not labels |
+| **Smart patient allocation** | Ranks students by quota gap, workload, pace and year, with a "why" for every rank |
+| **Explainable oral-cancer risk** | Odds multiplier per factor; updates live when a lesion is charted |
+| **Trust** | Append-only audit trail, role-based access, rate-limited login, server-side logout, notifications |
+
+How this compares with Dentrix, Open Dental, axiUm, college ERPs and ABDM: [docs/existing-solutions.md](docs/existing-solutions.md).
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Faculty overview](docs/screenshots/05-faculty-overview.png) **Faculty overview** | ![New case with tooth chart and live risk](docs/screenshots/04-new-case-tooth-chart-risk.png) **New case: FDI chart + live risk** |
+| ![At-risk students](docs/screenshots/07-at-risk-drawer.png) **Explainable at-risk alerts** | ![Smart allocation](docs/screenshots/08-smart-allocation.png) **Smart patient allocation** |
+| ![Population insights](docs/screenshots/09-population-insights.png) **Population insights** | ![Patient profile](docs/screenshots/11-patient-profile-risk.png) **Patient profile + risk screening** |
+| ![Audit log](docs/screenshots/13-audit-log.png) **Audit log (admin)** | ![Dark mode](docs/screenshots/15-dark-mode-insights.png) **Dark mode** |
+
+More in [docs/screenshots](docs/screenshots): login, student overview and cases, approvals, department load,
+printable summary, notifications, mobile.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    SPA["React 19 + TS SPA<br/>Vite · Tailwind · Recharts"] -- "Bearer JWT" --> NGINX["nginx<br/>SPA + /api proxy"]
+    NGINX --> API["FastAPI<br/>routers → services → SQLModel"]
+    API --> DB[("PostgreSQL 16<br/>SQLite in dev")]
+    API --> ML[("scikit-learn models<br/>ml/artifacts")]
+    API -. "FHIR R4 Bundle export" .-> ABDM["ABDM-ready<br/>(no live link)"]
+```
+
+Layers, data flow, security model and deployment: [docs/architecture.md](docs/architecture.md).
 
 | Layer | Stack |
 |---|---|
-| Backend | Python 3.11+ · FastAPI · SQLModel · SQLite (PostgreSQL via `DATABASE_URL`) · Alembic · JWT · bcrypt |
-| ML | scikit-learn (logistic regression only: every prediction is decomposable) · NumPy · joblib |
-| Frontend | React 19 · TypeScript · Vite · Tailwind CSS · React Router · Recharts |
-| Tests | pytest: 30 tests (Phase-1 API + Phase-2 analytics consistency, ML sanity, alerts, allocation, migrations) |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS, React Router, Recharts |
+| Backend | Python 3.12/3.13, FastAPI, SQLModel (SQLAlchemy 2), Alembic, PyJWT, bcrypt |
+| ML | scikit-learn logistic regression (fully decomposable), NumPy, joblib |
+| Data | PostgreSQL 16 (Docker) or SQLite (local dev), switched by `DATABASE_URL` |
+| Ops | Docker Compose (postgres + API + nginx), GitHub Actions CI, pytest (44 tests) |
 
-## Quick start
+## Features by role
+
+**Student**: overview (quota, attendance, reviews, focus) · new case with interactive FDI chart (permanent + primary teeth, keyboard accessible) and live oral-cancer risk · my cases with quota bars, focus areas and learning plan · patients · notifications.
+
+**Faculty**: overview · pending approvals (approve / return with remarks) · at-risk students (sortable, detail drawer) · allocate patient · department load · population insights · mark attendance · marks entry · patients (print summary, FHIR export).
+
+**Admin**: everything faculty can see (except reviewing cases) · student and faculty lists · audit log.
+
+**Everyone**: light / dark / system theme, toasts, notification bell, account page (password change), session expiry.
+
+Walkthrough per role: [docs/user-guide.md](docs/user-guide.md).
+
+## Setup
+
+### Option A: Docker (one command, PostgreSQL)
+
+Prerequisite: Docker Desktop (or Docker Engine + Compose v2).
+
+```bash
+cp .env.example .env
+# edit .env: set JWT_SECRET and POSTGRES_PASSWORD, e.g.
+#   python -c "import secrets; print(secrets.token_urlsafe(48))"
+docker compose up --build -d                                  # db + API (migrations run on start) + web
+docker compose exec backend python -m scripts.seed --reset   # synthetic demo data + model training (~20 s)
+```
+
+Open **http://localhost:8080** (API docs: http://localhost:8080/docs). Stop with `docker compose down`
+(add `-v` to delete the database volume).
+
+> Builds failing with `CERTIFICATE_VERIFY_FAILED`? Your network or antivirus inspects HTTPS. Point
+> `EXTRA_CA_CERT` in `.env` at that root certificate (PEM); it is used only at build time.
+
+### Option B: local development (SQLite)
 
 Prerequisites: **Python 3.11+** and **Node 18+**.
 
-### 1. Backend (http://localhost:8000, Swagger at http://localhost:8000/docs)
-
 ```bash
+# 1. Backend  →  http://localhost:8000  (Swagger: /docs)
 cd backend
 python -m venv .venv
 # Windows:  .venv\Scripts\activate        macOS/Linux:  source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt        # runtime deps + test tools
 cp .env.example .env                       # Windows cmd: copy .env.example .env
-python -m scripts.seed --reset             # synthetic data + trains both ML models (~15 s)
-python -m ml.train                         # optional: retrain and rewrite docs/ml-report.md
-uvicorn app.main:app --reload --port 8000
+python -m scripts.seed --reset             # synthetic data + trains both models (~20 s)
+uvicorn app.main:app --port 8000
 ```
 
-### 2. Frontend (http://localhost:5173)
-
 ```bash
+# 2. Frontend  →  http://localhost:5173  (in a second terminal)
 cd frontend
 npm install
 npm run dev
 ```
 
-The Vite dev server proxies `/api/*` to the backend.
+Leaving `JWT_SECRET` empty in development gives a random per-process secret (you sign in again after a
+restart). Set `APP_ENV=production` to enforce a strong secret, explicit CORS origins and migrations-only schema.
 
-### Demo logins
+### Tests and checks
 
-The login page has one-click buttons for these.
+```bash
+cd backend && python -m pytest -q             # 44 tests (set TEST_DATABASE_URL to run them on PostgreSQL)
+cd frontend && npm run lint && npm run build  # 0 errors
+cd backend && python -m ml.train              # retrain models + regenerate docs/ml-report.md
+```
 
-| Role | Email | Password | What to try |
+## Demo logins
+
+One-click buttons on the login page. All demo passwords satisfy the app's password policy.
+
+| Role | Email | Password | Try this |
 |---|---|---|---|
-| Student (strong, BDS IV) | `student@gdch.demo` | `Molar#2026` | My Cases: quota bars, Focus areas, Learning plan → New Case (risk panel updates when you chart a lesion; Pedodontics opens the primary-teeth chart) |
-| Student (at-risk, BDS III) | `atrisk.student@gdch.demo` | `Molar#2026` | Gentle focus areas (attendance, quota, weak subject) and learning plan |
-| Faculty (HOD Oral Medicine) | `faculty@gdch.demo` | `Clinic#2026` | At-Risk Students (sort + drawer), Allocate Patient, Department Load, Population Insights, Mark Attendance, Marks Entry, Pending Approvals |
-| Admin | `admin@gdch.demo` | `Office#2026` | Everything faculty can see + student/faculty lists |
+| Student (strong, BDS IV) | `student@gdch.demo` | `Molar#2026` | Overview → New Case: chart a lesion and watch the risk card; choose Pedodontics for the primary-teeth chart |
+| Student (at-risk, BDS III) | `atrisk.student@gdch.demo` | `Molar#2026` | Focus areas and learning plan |
+| Faculty (HOD Oral Medicine) | `faculty@gdch.demo` | `Clinic#2026` | Notifications, Pending Approvals, At-Risk Students, Allocate Patient, Population Insights |
+| Admin | `admin@gdch.demo` | `Office#2026` | Overview, Audit Log, Students / Faculty |
 
-All other generated accounts use `Dental#2026`.
+All other generated accounts (listed under Admin → Students / Faculty) use `Dental#2026`.
 
-### Tests
+## Data and models (synthetic)
 
-```bash
-cd backend
-python -m pytest -q
-```
+`scripts/seed.py` generates deterministic **synthetic** data (every patient is tagged `is_synthetic`):
+400 patients across Goa's 12 talukas, 60 students (BDS I–IV + interns), 10 faculty, ~1,400 supervised
+cases with FDI findings, 12 weeks of attendance and marks. Hidden generative models drive potentially
+malignant disorders (from habits, age and taluka) and caries (rising with age: about **51% of children and
+66% of adults**). Ten students are deliberately at-risk; their labels are kept outside the database for
+evaluation only.
 
-### Database migrations
-
-The app creates missing tables at start-up for convenience (`AUTO_CREATE_TABLES=true`). For a shared or
-production database set `AUTO_CREATE_TABLES=false` and use Alembic:
-
-```bash
-cd backend
-alembic upgrade head                          # create / upgrade the schema
-alembic revision --autogenerate -m "..."      # after changing app/models
-```
-
-Switching to PostgreSQL: `pip install psycopg2-binary`, set
-`DATABASE_URL=postgresql+psycopg2://user:pass@host:5432/dentaliq`, then `alembic upgrade head` and seed.
-
-## Phase 2 features
-
-| Area | Where | What |
-|---|---|---|
-| **Population Insights** | Faculty/Admin → Population Insights | Disease burden by taluka (bar + heat table), habits vs OSMF / leukoplakia / lesions with **prevalence ratios + 95% CI**, caries by age & sex, monthly cases per department, top diagnoses & procedures. Filters: date range, taluka, department. **Key-insight cards are generated from the queried data** (e.g. *"Adults who use or used gutkha / smokeless tobacco show 37.7x higher prevalence of OSMF ... 95% CI 9.0-157"*; wide intervals are shown, not hidden), ranked by the CI lower bound with minimum group sizes |
-| **Oral cancer risk screening** | Patient profile; New Case form | Logistic regression on age, sex, smokeless tobacco, smoking, alcohol, habit duration, rural-belt taluka and observed lesion → Low/Medium/High, probability, **top factors with odds multipliers**, suggested action (biopsy referral, cessation counselling, recall). Updates live when a lesion is charted. A recorded PMD diagnosis sets the final level to High (the model's own level stays visible) |
-| **At-risk student alerts** | Faculty/Admin → At-Risk Students | Signals: 12-week attendance + 4-week trend, marks average + trend, quota pace vs cohort median, rejection rate. **Rules give reasons + actions**, a logistic-regression score ranks and adds per-signal contributions. Sortable table, detail drawer with weekly attendance chart |
-| **Focus areas** | Student → My Cases | Same signals in gentle, actionable wording ("Attending your next 18 sessions will take you past 75%") |
-| **Learning plan** | Student → My Cases | Weakest departments (quota gaps) with **kinds of cases to seek** and where to find them; weakest subjects with an exam-type tip; weak subject + lagging department = "double priority" |
-| **Smart allocation** | Faculty/Admin → Allocate Patient | Rank eligible students by quota gap (0.45), workload (0.25), pace behind cohort (0.15), seniority (0.15); low recent attendance halves the score. Each candidate shows reasons + component bars. **Assign** creates a draft case for that student |
-| **Department Load** | Faculty/Admin → Department Load | Cases per faculty vs college average, review backlog, weeks needed to clear outstanding quotas → overloaded / patient shortage / balanced / spare capacity |
-| **Phase-1 gaps closed** | Faculty/Admin → Mark Attendance, Marks Entry | Bulk attendance (P/L/A/E) and marks entry (upsert); **primary teeth** (FDI 51–85) with a Permanent/Primary toggle; **Alembic** migrations |
-
-### Consistency guarantees
-- Disease categories come from **one module** (`services/clinical_terms.py`), used by the dashboard, the insights and the risk-model labels.
-- Quota numbers everywhere (progress bars, alerts, allocation, learning plan) come from `services/quota.py`.
-- Attendance uses one 12-week window (`services/academic_policy.py`) on the dashboard card, alerts and focus areas.
-- Tests assert these cross-page equalities (e.g. taluka rows sum to the summary, trend totals = case count, alert attendance = attendance card).
-
-## Synthetic data
-
-`python -m scripts.seed --reset` generates **synthetic, deterministic** data. Every patient is `is_synthetic = true`.
-
-- 400 patients across Goa's 12 talukas (weighted towards Bambolim's neighbours). A **hidden logistic model** assigns
-  potentially malignant disorders from smokeless tobacco, smoking, alcohol, age, habit duration and rural taluka, so the
-  analytics and the risk model have a known ground truth to recover. Young children get **primary-tooth** findings.
-- 60 students, 10 faculty, ~1,400 supervised cases (follow-ups within ~3 months of the first visit), 12 weeks of attendance, internal/sessional/practical marks.
-- **Caries** is also a hidden per-patient condition whose probability rises with age: about **50% of children and 66% of adults**
-  in the current seed (it was ~80% at every age before Phase 3).
-- **10 deliberately at-risk students**: declining attendance, low case count, weak/declining marks, high rejection rate.
-  Their labels are written to `ml/artifacts/seed_ground_truth.json` (never to the DB) for offline evaluation only.
-- Distributions are plausible but hand-tuned. **They are not epidemiological estimates.**
-
-## Key numbers (current seed; see `docs/ml-report.md`)
-
-| Model | Metric |
+| Model | Result on the synthetic data ([docs/ml-report.md](docs/ml-report.md)) |
 |---|---|
-| Oral-cancer / PMD risk | 5-fold CV ROC AUC **0.92** (0.80 without the lesion feature); High threshold P/R 0.63 / 0.46 |
-| At-risk students (hybrid) | vs 10 designed at-risk students: **High alerts P/R 1.00 / 1.00**; watch list (High + Medium) P/R 0.77 / 1.00 |
+| Oral-cancer / PMD risk (logistic regression) | 5-fold CV AUC **0.92**; **0.80** without the lesion input (the honest pre-charting estimate) |
+| At-risk students (rules + logistic regression) | High alerts: precision / recall **1.00 / 1.00** vs the 10 designed students; watch list 0.77 / 1.00 |
 
-These describe recovery of the generator's assumptions on synthetic data, **not** clinical or academic validity.
+These show the models recover the generator's assumptions. **They are not clinical or academic evidence.**
 
 ## Project structure
 
 ```
 backend/
-  app/
-    core/        config (env), security (bcrypt, JWT), deps (auth + role guards)
-    models/      SQLModel tables + enums
-    schemas/     Pydantic request/response models
-    services/    quota, cases, clinical_terms, analytics, allocation, learning, academic_policy
-    routers/     auth, patients (+risk-screening), cases, students, faculty, academic,
-                 admin, analytics, intelligence (alerts/focus/learning plan), allocation
-  ml/            oral_risk, student_risk, train (CLI), report (renders docs/ml-report.md), artifacts/ (generated)
-  migrations/    Alembic environment + versions
-  scripts/       seed.py + seed_data.py
-  tests/         test_api.py (Phase 1), test_phase2.py (Phase 2)
-frontend/src/
-  api/           typed client + endpoint functions + TS types
-  auth/          session context, role guard
-  components/    UI kit, AppLayout, ToothChart (permanent + primary), RiskPanel, charts, Drawer
-  lib/           labels, chart colours (validated palette), formatting, useApi
-  pages/         patients/, cases/, student/, faculty/, allocation/, analytics/, admin/
-docs/            existing-solutions.md, data-model.md, ml-report.md
+  app/        core (config, security, deps, passwords, rate limit) · models · schemas · services · routers
+  ml/         oral_risk · student_risk · train (CLI) · report · artifacts/ (generated)
+  migrations/ Alembic          scripts/ seed       tests/ API, Phase 2, security, FHIR
+  Dockerfile  docker-entrypoint.sh (alembic upgrade head → uvicorn)
+frontend/
+  src/        api · auth · components (ToothChart, RiskPanel, charts, NotificationBell, …) · lib · pages
+  Dockerfile  nginx/default.conf
+docs/         architecture · user-guide · pitch · existing-solutions · data-model · ml-report · abdm-roadmap · screenshots
+docker-compose.yml   .env.example   .github/workflows/ci.yml
 ```
 
-## API overview (Phase 2 additions)
+## Limitations (honest scope)
 
-Full interactive docs at **http://localhost:8000/docs**.
+- **Synthetic data only.** Prevalences and model metrics reflect the generator, not Goa's population or the college.
+- **No live ABDM integration.** ABHA numbers are format-checked, not verified. The FHIR export is validated
+  against R4B models in tests, not with the official HL7 validator or the NRCeS profiles; clinical concepts
+  are exported as text, not SNOMED CT. See [docs/abdm-roadmap.md](docs/abdm-roadmap.md).
+- The student-risk model is trained with **weak labels** derived from its own rules; its score thresholds
+  were tuned on the same data. Real deployment needs historical outcomes.
+- Login rate limiting is in-memory (single API process). No refresh tokens or MFA.
+- Faculty "availability" in allocation is head-count; there is no timetable data.
+- Not for clinical use.
 
-| Area | Endpoints |
-|---|---|
-| Population analytics (staff) | `GET /api/analytics/population` (all sections) · `/taluka-burden` · `/habit-associations` · `/caries` · `/case-trend` · `/top-terms` · `/insights`. All take `date_from`, `date_to`, `taluka`, `department` |
-| Oral cancer risk | `POST /api/patients/{id}/risk-screening` (optional `{"lesion_observed": true}`) |
-| Student intelligence | `GET /api/alerts/students` (staff) · `GET /api/students/{id}/risk` (staff) · `GET /api/students/{id}/focus-areas` · `GET /api/students/{id}/learning-plan` |
-| Allocation (staff) | `GET /api/allocation/recommendations?patient_id=&department=` · `POST /api/allocation/assign` · `GET /api/allocation/resources?days=` |
-| Academics | `POST /api/assessments/bulk` · `GET /api/assessments/subjects` (+ Phase-1 attendance/marks endpoints) |
+## Future scope
 
-Phase-1 endpoints (auth, patients, cases, tooth findings, students, faculty, attendance, quotas, admin) are unchanged.
-
-## Roadmap
-
-### Phase 1 – done
-Research doc, scaffold, data model, synthetic seed, JWT + RBAC API, role-based UI with the FDI tooth chart, case lifecycle, approvals, quota progress.
-
-### Phase 2 – done
-Population insights dashboard, explainable oral-cancer risk screening, hybrid at-risk alerts with reasons and actions,
-student focus areas and learning plans, smart patient allocation, department load view, attendance and marks entry
-screens, primary-teeth charting, Alembic migrations, ML report.
-
-### Phase 3 – next
-- **UI polish**: dark mode, empty/loading skeletons, print-friendly patient summary, accessibility audit.
-- **Deployment**: Docker Compose (API + PostgreSQL + static frontend), HTTPS, `AUTO_CREATE_TABLES=false` + migrations in CI.
-- **ABDM integration**: ABHA verification (sandbox), FHIR R4 bundles (Encounter / Condition / Procedure) for HIP linking.
-- **Real-data readiness**: consented de-identified data, re-training with real outcomes (detained/failed) instead of
-  weak labels, prospective validation, model monitoring and versioned model cards.
-- Security hardening: refresh tokens, password policy, rate limiting, audit log of record access.
-- Faculty timetables (true availability in allocation), notifications for new alerts and allocations.
+Pilot with consented, de-identified data and real outcome labels · ABDM sandbox → ABHA verification (M1) →
+SNOMED CT coding and NRCeS bundles → HIP flows (M2) · faculty timetables and appointment scheduling ·
+SMS reminders · MFA and Redis-backed rate limiting · multi-college and state-level dashboards.
+One-page pitch: [docs/pitch.md](docs/pitch.md).
 
 ---
-*All data in this prototype is synthetic. Not for clinical use.*
+<sub>Dental-IQ · hackathon prototype · synthetic data · not for clinical use.</sub>
