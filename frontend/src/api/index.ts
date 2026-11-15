@@ -17,6 +17,7 @@ import type {
   PatientRead,
   PopulationQuery,
   PopulationReport,
+  RiskScreening,
   StudentQuotaProgress,
   StudentRead,
   StudentYear,
@@ -36,6 +37,10 @@ export const patientsApi = {
   get: (id: number) => request<PatientDetail>('GET', `/patients/${id}`),
   create: (body: PatientInput) => request<PatientRead>('POST', '/patients', { body }),
   update: (id: number, body: Partial<PatientInput>) => request<PatientRead>('PATCH', `/patients/${id}`, { body }),
+  riskScreening: (id: number, lesionObserved?: boolean) =>
+    request<RiskScreening>('POST', `/patients/${id}/risk-screening`, {
+      body: { lesion_observed: lesionObserved ?? null },
+    }),
 }
 
 export const casesApi = {

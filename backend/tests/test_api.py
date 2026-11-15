@@ -130,8 +130,10 @@ def test_case_lifecycle_feeds_ehr_and_quota(client, db):
 
 def test_case_validation(client, db):
     student = login(client, "asha@test.demo")
-    # invalid FDI tooth
+    # invalid FDI tooth (19 and 56 do not exist); primary 55 is valid
     assert _new_case(client, student, db["f1"], findings=[{"tooth_number": 19, "condition": "caries"}]).status_code == 422
+    assert _new_case(client, student, db["f1"], findings=[{"tooth_number": 56, "condition": "caries"}]).status_code == 422
+    assert _new_case(client, student, db["f1"], findings=[{"tooth_number": 55, "condition": "caries"}]).status_code == 201
     # duplicate tooth
     dup = [{"tooth_number": 11, "condition": "caries"}, {"tooth_number": 11, "condition": "filled"}]
     assert _new_case(client, student, db["f1"], findings=dup).status_code == 422

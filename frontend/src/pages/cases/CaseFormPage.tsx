@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { casesApi, facultyApi, patientsApi } from '../../api'
 import { ApiError } from '../../api/client'
 import type { Department, FacultyRead, ToothFindingInput } from '../../api/types'
+import { RiskPanel } from '../../components/RiskPanel'
 import { FindingsTable, ToothChart } from '../../components/ToothChart'
 import { Button, Card, CardHeader, ErrorBanner, Field, Input, PageHeader, Select, Spinner, Textarea } from '../../components/ui'
 import { todayIso } from '../../lib/format'
@@ -184,6 +185,18 @@ export function CaseFormPage() {
             </Field>
           </div>
         </Card>
+
+        {patient && (
+          <Card>
+            <CardHeader
+              title="Oral cancer risk"
+              subtitle="Updates when you chart a lesion below. Screen and counsel before treatment."
+            />
+            <div className="p-5">
+              <RiskPanel patientId={patient.id} lesionObserved={findings.some((f) => f.condition === 'lesion') || undefined} compact />
+            </div>
+          </Card>
+        )}
 
         <Card>
           <CardHeader title="Clinical notes" />

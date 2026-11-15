@@ -16,7 +16,7 @@ PASSWORDS = {
 def seeded():
     from scripts.seed import seed
 
-    seed(reset=True, train=False, verbose=False)
+    seed(reset=True, train=True, verbose=False)
     with TestClient(app) as client:
         yield client
 
@@ -73,3 +73,53 @@ def test_population_filters_match_unfiltered_rows(seeded):
 def test_analytics_is_staff_only(seeded):
     res = seeded.get("/api/analytics/population", headers=auth(seeded, "student@gdch.demo"))
     assert res.status_code == 403
+
+
+# --- Step 2: oral cancer risk screening ---------------------------------------------------
+
+def _pmd_patient_id(client, headers) -> int:
+    rows = client.get("/api/cases", params={"limit": 500, "department": "oral_medicine", "status": "approved"},
+                      headers=headers).json()["items"]
+    return next(c["patient_id"] for c in rows if "OSMF" in (c["diagnosis"] or "") or "leukoplakia" in (c["diagnosis"] or "").lower())
+
+
+def test_oral_risk_model_trained_with_sane_metrics():
+    from ml.common import load_bundle
+
+    b = load_bundle("oral_risk")
+    assert b is not None and b["n_positive"] >= 10
+    assert b["metrics"]["cv5"]["auc"] > 0.7  # recovers the seeded habit-driven signal
+    coefs = dict(zip(b["features"], b["coef"]))
+    assert coefs["smokeless_current"] > 0 and coefs["lesion_observed"] > 0
+
+
+def test_explanation_is_exact_decomposition():
+    import math
+
+    from ml.common import load_bundle
+    from ml.oral_risk import FEATURE_NAMES, PatientFeatures, explain
+
+    b = load_bundle("oral_risk")
+    feats = PatientFeatures({n: v for n, v in zip(FEATURE_NAMES, [1.5, 1, 1, 0, 1, 0, 1, 2.0, 1, 0])})
+    out = explain(b, feats)
+    logit = b["intercept"] + sum(c * feats.values[n] for n, c in zip(b["features"], b["coef"]))
+    assert math.isclose(out["probability"], 1 / (1 + math.exp(-logit)), rel_tol=1e-9)
+
+
+def test_risk_screening_endpoint(seeded):
+    h = auth(seeded, "student@gdch.demo")
+    # A never-user child-free adult: lesion observed must raise the probability and change the action.
+    base = seeded.post("/api/patients/3/risk-screening", headers=h).json()
+    assert base["risk_level"] in ("Low", "Medium", "High") and 0 <= base["probability"] <= 1
+    assert base["suggested_action"] and base["model"]["auc_cv"]
+    with_lesion = seeded.post("/api/patients/3/risk-screening", json={"lesion_observed": True}, headers=h).json()
+    assert with_lesion["probability"] >= base["probability"]
+    assert with_lesion["lesion_observed"] is True
+
+    # Known PMD on record -> final level High, with the model's own level kept for transparency.
+    pid = _pmd_patient_id(seeded, auth(seeded, "faculty@gdch.demo"))
+    known = seeded.post(f"/api/patients/{pid}/risk-screening", headers=h).json()
+    assert known["known_pmd_diagnosis"] is True and known["risk_level"] == "High"
+    assert known["model_risk_level"] in ("Low", "Medium", "High")
+
+    assert seeded.post("/api/patients/999999/risk-screening", headers=h).status_code == 404

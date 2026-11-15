@@ -525,7 +525,7 @@ def seed(reset: bool, train: bool = True, verbose: bool = True) -> None:
             from ml.train import train_all
         except ImportError:  # ML layer not installed
             return
-        train_all(write_report=False, verbose=verbose)
+        train_all(report=False, verbose=verbose)
 
 
 def stamp_alembic_head() -> None:

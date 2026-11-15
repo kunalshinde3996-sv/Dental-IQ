@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { patientsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { RiskPanel } from '../../components/RiskPanel'
 import { Card, CardHeader, EmptyState, ErrorBanner, PageHeader, Spinner, StatusBadge } from '../../components/ui'
 import { formatDate } from '../../lib/format'
 import { DEPARTMENTS, HABITS, SEXES, TALUKAS } from '../../lib/labels'
@@ -54,6 +55,12 @@ export function PatientProfilePage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">
+          <Card>
+            <CardHeader title="Oral cancer risk screening" subtitle="Explainable model · habits, age, taluka, lesions" />
+            <div className="p-5">
+              <RiskPanel patientId={p.id} />
+            </div>
+          </Card>
           <Card>
             <CardHeader title="Patient details" />
             <dl className="grid grid-cols-2 gap-4 p-5">

@@ -298,3 +298,34 @@ export interface PopulationReport {
   insights: Insight[]
   condition_labels: Record<string, string>
 }
+
+// ---------------------------------------------------------------- Phase 2: oral cancer risk
+
+export type RiskLevel = 'Low' | 'Medium' | 'High'
+
+export interface RiskFactor {
+  feature: string
+  label: string
+  value: number
+  contribution: number
+  odds_multiplier: number
+  direction: 'increases' | 'decreases'
+}
+
+export interface RiskScreening {
+  patient_id: number
+  probability: number
+  risk_percent: number
+  risk_level: RiskLevel
+  model_risk_level: RiskLevel
+  baseline_probability: number
+  factors: RiskFactor[]
+  lesion_observed: boolean
+  lesion_source: 'recorded' | 'override' | 'none'
+  known_pmd_diagnosis: boolean
+  suggested_action: string
+  additional_actions: string[]
+  notes: string[]
+  model: { version: string; trained_at: string; auc_cv: number | null; n_train: number; thresholds: Record<string, number> }
+  disclaimer: string
+}

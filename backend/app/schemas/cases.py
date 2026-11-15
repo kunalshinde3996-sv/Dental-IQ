@@ -7,11 +7,14 @@ from app.models.enums import CaseStatus, Department, ToothCondition
 
 #: Valid permanent-dentition FDI numbers: quadrants 1-4, teeth 1-8.
 FDI_PERMANENT = frozenset(q * 10 + t for q in range(1, 5) for t in range(1, 9))
+#: Valid primary (deciduous) FDI numbers: quadrants 5-8, teeth 1-5.
+FDI_PRIMARY = frozenset(q * 10 + t for q in range(5, 9) for t in range(1, 6))
+FDI_VALID = FDI_PERMANENT | FDI_PRIMARY
 _SURFACE_CODES = set("MODBLIF")  # mesial, occlusal, distal, buccal, lingual, incisal, facial
 
 
 class ToothFindingIn(BaseModel):
-    tooth_number: int = Field(description="FDI notation, 11-48")
+    tooth_number: int = Field(description="FDI notation: permanent 11-48, primary 51-85")
     condition: ToothCondition
     surfaces: str | None = Field(default=None, description="Combination of M,O,D,B,L,I,F e.g. 'MOD'")
     treatment: str | None = Field(default=None, max_length=200)
@@ -20,8 +23,9 @@ class ToothFindingIn(BaseModel):
     @field_validator("tooth_number")
     @classmethod
     def _fdi(cls, v: int) -> int:
-        if v not in FDI_PERMANENT:
-            raise ValueError("tooth_number must be a valid FDI permanent tooth (11-18, 21-28, 31-38, 41-48)")
+        if v not in FDI_VALID:
+            raise ValueError("tooth_number must be a valid FDI tooth: permanent 11-18, 21-28, 31-38, 41-48 "
+                             "or primary 51-55, 61-65, 71-75, 81-85")
         return v
 
     @field_validator("surfaces")

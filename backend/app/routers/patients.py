@@ -15,6 +15,8 @@ from app.schemas.patients import (
     PatientListItem,
     PatientRead,
     PatientUpdate,
+    RiskScreening,
+    RiskScreeningRequest,
     VisitSummary,
 )
 from app.services.cases import case_query
@@ -140,3 +142,16 @@ def delete_patient(patient_id: int, session: SessionDep, _admin: AdminUser) -> N
         session.delete(case)
     session.delete(patient)
     session.commit()
+
+
+@router.post("/{patient_id}/risk-screening", response_model=RiskScreening,
+             summary="Oral cancer / PMD risk screening with explanation and suggested action")
+def risk_screening(patient_id: int, session: SessionDep, _user: CurrentUser,
+                   body: RiskScreeningRequest | None = None):
+    from ml.oral_risk import screen  # imported lazily: keeps app start-up light
+
+    patient = _get_or_404(session, patient_id)
+    try:
+        return screen(session, patient, body.lesion_observed if body else None)
+    except FileNotFoundError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from None

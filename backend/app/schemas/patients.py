@@ -131,3 +131,48 @@ class VisitSummary(BaseModel):
 
 class PatientDetail(PatientRead):
     visits: list[VisitSummary]
+
+
+# --- Oral cancer risk screening (Phase 2) -----------------------------------------
+
+class RiskScreeningRequest(BaseModel):
+    lesion_observed: bool | None = Field(
+        default=None,
+        description="Set true if a mucosal lesion is seen at today's exam (e.g. while filling a new case). "
+        "Lesions already recorded on the patient's cases are always included.",
+    )
+
+
+class RiskFactor(BaseModel):
+    feature: str
+    label: str
+    value: float
+    contribution: float = Field(description="Log-odds contribution relative to the reference patient")
+    odds_multiplier: float
+    direction: str
+
+
+class RiskModelInfo(BaseModel):
+    version: str
+    trained_at: str
+    auc_cv: float | None
+    n_train: int
+    thresholds: dict[str, float]
+
+
+class RiskScreening(BaseModel):
+    patient_id: int
+    probability: float
+    risk_percent: float
+    risk_level: str = Field(description="Final level: Low / Medium / High (High whenever a PMD is on record)")
+    model_risk_level: str = Field(description="Level from the model probability alone")
+    baseline_probability: float
+    factors: list[RiskFactor]
+    lesion_observed: bool
+    lesion_source: str = Field(description="recorded / override / none")
+    known_pmd_diagnosis: bool
+    suggested_action: str
+    additional_actions: list[str]
+    notes: list[str]
+    model: RiskModelInfo
+    disclaimer: str
